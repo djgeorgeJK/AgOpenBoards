@@ -54,7 +54,7 @@ float outputWAS[] = { -50.00, -45.0, -40.0, -35.0, -30.0, -25.0, -20.0, -15.0, -
 #include <EEPROM.h>
 #include "zADS1115.h"
 #ifdef USE_EXTERN_ADC
-  ADS1115_lite adc(ADS1115_DEFAULT_ADDRESS);     // Use this for the 16-bit version ADS1115
+    ADS1115_lite adc(ADS1115_DEFAULT_ADDRESS);     // Use this for the 16-bit version ADS1115
 #endif
 
 #include <IPAddress.h>

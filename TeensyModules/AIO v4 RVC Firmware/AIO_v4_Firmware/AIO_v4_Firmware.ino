@@ -33,10 +33,10 @@
 #endif
 
 #define SerialAOG Serial                //AgIO USB conection
-#define SerialRTK Serial5               //RTK radio
-HardwareSerialIMXRT* SerialGPS = &Serial2;   //Main postion receiver (GGA)
+#define SerialRTK Serial3               //RTK radio
+HardwareSerialIMXRT* SerialGPS = &Serial1;   //Main postion receiver (GGA)
 HardwareSerialIMXRT* SerialGPS2 = &Serial7;  //Dual heading receiver 
-HardwareSerialIMXRT* SerialIMU = &Serial3;   //IMU BNO-085
+HardwareSerialIMXRT* SerialIMU = &Serial5;   //IMU BNO-085
 
 constexpr int serial_buffer_size = 512;
 
@@ -147,7 +147,7 @@ void setup()
 {
     delay(1000);                       //Small delay so serial can monitor start up
     set_arm_clock(450000000);         //Set CPU speed to 150mhz
-    Serial.print("CPU speed set to: ");
+    Serial.print("CPU speed set to 2: ");
     Serial.println(F_CPU_ACTUAL);
 
     pinMode(GGAReceivedLED,         OUTPUT);
