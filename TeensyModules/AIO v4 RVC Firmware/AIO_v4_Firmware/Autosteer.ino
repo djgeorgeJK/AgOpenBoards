@@ -53,7 +53,9 @@ float outputWAS[] = { -50.00, -45.0, -40.0, -35.0, -30.0, -25.0, -20.0, -15.0, -
 #include <Wire.h>
 #include <EEPROM.h>
 #include "zADS1115.h"
-ADS1115_lite adc(ADS1115_DEFAULT_ADDRESS);     // Use this for the 16-bit version ADS1115
+#ifdef USE_EXTERN_ADC
+  ADS1115_lite adc(ADS1115_DEFAULT_ADDRESS);     // Use this for the 16-bit version ADS1115
+#endif
 
 #include <IPAddress.h>
 
@@ -205,19 +207,21 @@ void autosteerSetup()
   pinMode(PRESSURE_SENSOR_PIN, INPUT_DISABLE);
 
   //set up communication
-  Wire1.end();
-  Wire1.begin();
-    
-  // Check ADC 
-  if(adc.testConnection())
-  {
-    Serial.println("ADC Connecton OK");
-  }
-  else
-  {
-    Serial.println("ADC Connecton FAILED!");
-    Autosteer_running = false;
-  }
+  #ifdef USE_EXTERN_ADC
+    Wire1.end();
+    Wire1.begin();
+      
+    // Check ADC 
+    if(adc.testConnection())
+    {
+      Serial.println("ADC Connecton OK");
+    }
+    else
+    {
+      Serial.println("ADC Connecton FAILED!");
+      Autosteer_running = false;
+    }
+  #endif
 
   //50Khz I2C
   //TWBR = 144;   //Is this needed?
@@ -256,9 +260,10 @@ void autosteerSetup()
     return;
   }
 
-  adc.setSampleRate(ADS1115_REG_CONFIG_DR_128SPS); //128 samples per second
-  adc.setGain(ADS1115_REG_CONFIG_PGA_6_144V);
-
+  #ifdef USE_EXTERN_ADC
+    adc.setSampleRate(ADS1115_REG_CONFIG_DR_128SPS); //128 samples per second
+    adc.setGain(ADS1115_REG_CONFIG_PGA_6_144V);
+  #endif
 }// End of Setup
 
 void autosteerLoop()
@@ -390,37 +395,42 @@ void autosteerLoop()
     switchByte |= workSwitch;
 
     //get steering position
-    if (steerConfig.SingleInputWAS)   //Single Input ADS
-    {
-      adc.setMux(ADS1115_REG_CONFIG_MUX_SINGLE_0);
-      steeringPosition = adc.getConversion();
-      adc.triggerConversion();//ADS1115 Single Mode
+    #ifdef USE_EXTERN_ADC
+      if (steerConfig.SingleInputWAS)   //Single Input ADS
+      {      
+        adc.setMux(ADS1115_REG_CONFIG_MUX_SINGLE_0);
+        steeringPosition = adc.getConversion();  // 16 bit value 0-65535
+        adc.triggerConversion();//ADS1115 Single Mode
+        steeringPosition = (steeringPosition >> 1); //bit shift by 2  0 to 13610 is 0 to 5v
+        helloSteerPosition = steeringPosition - 6800;      
+        steeringPosition = (steeringPosition - 6805;
+      }
+      else    //ADS1115 Differential Mode
+      {      
+        adc.setMux(ADS1115_REG_CONFIG_MUX_DIFF_0_1);
+        steeringPosition = adc.getConversion();
+        adc.triggerConversion();
+        steeringPosition = (steeringPosition >> 1); //bit shift by 2  0 to 13610 is 0 to 5v
+        helloSteerPosition = steeringPosition - 6800;     
+        steeringPosition = (steeringPosition - 6805;
+      }
+    #else
+      steeringPosition = analogRead(AN_POT_MY);   // I have 10bit (0-4095)
+      steeringPosition -= (4095/2);       // get middle
+    #endif
 
-      steeringPosition = (steeringPosition >> 1); //bit shift by 2  0 to 13610 is 0 to 5v
-      helloSteerPosition = steeringPosition - 6800;
-    }
-    else    //ADS1115 Differential Mode
-    {
-      adc.setMux(ADS1115_REG_CONFIG_MUX_DIFF_0_1);
-      steeringPosition = adc.getConversion();
-      adc.triggerConversion();
-
-      steeringPosition = (steeringPosition >> 1); //bit shift by 2  0 to 13610 is 0 to 5v
-      helloSteerPosition = steeringPosition - 6800;
-    }
-
-    //DETERMINE ACTUAL STEERING POSITION
-
+    //DETERMINE ACTUAL STEERING POSITION    
     //convert position to steer angle. 32 counts per degree of steer pot position in my case
     //  ***** make sure that negative steer angle makes a left turn and positive value is a right turn *****
+    
     if (steerConfig.InvertWAS)
     {
-      steeringPosition = (steeringPosition - 6805  - steerSettings.wasOffset);   // 1/2 of full scale
+      steeringPosition = (steeringPosition - steerSettings.wasOffset);   // 1/2 of full scale
       steerAngleActual = (float)(steeringPosition) / -steerSettings.steerSensorCounts;
     }
     else
     {
-      steeringPosition = (steeringPosition - 6805  + steerSettings.wasOffset);   // 1/2 of full scale
+      steeringPosition = (steeringPosition  + steerSettings.wasOffset);   // 1/2 of full scale
       steerAngleActual = (float)(steeringPosition) / steerSettings.steerSensorCounts;
     }
 
@@ -664,6 +674,7 @@ void ReceiveUdp()
                 steerSettings.lowPWM = (byte)temp;
 
                 steerSettings.steerSensorCounts = autoSteerUdpData[9]; //sent as setting displayed in AOG
+                
 
                 steerSettings.wasOffset = (autoSteerUdpData[10]);  //read was zero offset Lo
 
@@ -671,6 +682,9 @@ void ReceiveUdp()
 
                 steerSettings.AckermanFix = (float)autoSteerUdpData[12] * 0.01;
 
+                
+                Serial.printf("Stearsettnigs data new counts %d\r\n",steerSettings.steerSensorCounts );
+                Serial.printf("steerSettings.wasOffset data new counts %d\r\n",steerSettings.wasOffset );
                 //crc
                 //autoSteerUdpData[13];
 

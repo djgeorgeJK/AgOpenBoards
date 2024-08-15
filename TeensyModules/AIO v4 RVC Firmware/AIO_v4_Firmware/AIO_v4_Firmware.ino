@@ -26,11 +26,17 @@
 
 /************************* User Settings *************************/
 // Serial Ports
+#ifdef PLATFORMIO
+    #define HwSerial    HardwareSerialIMXRT
+#else
+    #define HwSerial    HardwareSerial
+#endif
+
 #define SerialAOG Serial                //AgIO USB conection
-#define SerialRTK Serial3               //RTK radio
-HardwareSerial* SerialGPS = &Serial7;   //Main postion receiver (GGA)
-HardwareSerial* SerialGPS2 = &Serial2;  //Dual heading receiver 
-HardwareSerial* SerialIMU = &Serial5;   //IMU BNO-085
+#define SerialRTK Serial5               //RTK radio
+HardwareSerialIMXRT* SerialGPS = &Serial2;   //Main postion receiver (GGA)
+HardwareSerialIMXRT* SerialGPS2 = &Serial7;  //Dual heading receiver 
+HardwareSerialIMXRT* SerialIMU = &Serial3;   //IMU BNO-085
 
 constexpr int serial_buffer_size = 512;
 
@@ -41,13 +47,14 @@ const int32_t baudRTK = 115200;     // most are using Xbee radios with default o
 #define RAD_TO_DEG_X_10 572.95779513082320876798154814105
 
 //Status LED's
-#define GGAReceivedLED 13         //Teensy onboard LED
-#define Power_on_LED 5            //Red
-#define Ethernet_Active_LED 6     //Green
-#define GPSRED_LED 9              //Red (Flashing = NO IMU or Dual, ON = GPS fix with IMU)
-#define GPSGREEN_LED 10           //Green (Flashing = Dual bad, ON = Dual good)
-#define AUTOSTEER_STANDBY_LED 11  //Red
-#define AUTOSTEER_ACTIVE_LED 12   //Green
+#define GGAReceivedLED          13      //Teensy onboard LED
+#define Power_on_LED            5       //Red
+#define Ethernet_Active_LED     6       //Green
+#define GPSRED_LED              9       //Red (Flashing = NO IMU or Dual, ON = GPS fix with IMU)
+#define GPSGREEN_LED            10      //Green (Flashing = Dual bad, ON = Dual good)
+#define AUTOSTEER_STANDBY_LED   11      //Red
+#define AUTOSTEER_ACTIVE_LED    12      //Green
+#define AN_POT_MY               A17     //41
 
 /*****************************************************************/
 
@@ -133,22 +140,23 @@ bool Autosteer_running = true; //Auto set off in autosteer setup
 float roll = 0;
 float pitch = 0;
 float yaw = 0;
+static uint32_t timeCntr = 0;
 
 // Setup procedure ------------------------
 void setup()
 {
-    delay(500);                       //Small delay so serial can monitor start up
+    delay(1000);                       //Small delay so serial can monitor start up
     set_arm_clock(450000000);         //Set CPU speed to 150mhz
     Serial.print("CPU speed set to: ");
     Serial.println(F_CPU_ACTUAL);
 
-    pinMode(GGAReceivedLED, OUTPUT);
-    pinMode(Power_on_LED, OUTPUT);
-    pinMode(Ethernet_Active_LED, OUTPUT);
-    pinMode(GPSRED_LED, OUTPUT);
-    pinMode(GPSGREEN_LED, OUTPUT);
-    pinMode(AUTOSTEER_STANDBY_LED, OUTPUT);
-    pinMode(AUTOSTEER_ACTIVE_LED, OUTPUT);
+    pinMode(GGAReceivedLED,         OUTPUT);
+    pinMode(Power_on_LED,           OUTPUT);
+    pinMode(Ethernet_Active_LED,    OUTPUT);
+    pinMode(GPSRED_LED,             OUTPUT);
+    pinMode(GPSGREEN_LED,           OUTPUT);
+    pinMode(AUTOSTEER_STANDBY_LED,  OUTPUT);
+    pinMode(AUTOSTEER_ACTIVE_LED,   OUTPUT);
     
     // the dash means wildcard
     parser.setErrorHandler(errorHandler);
@@ -198,20 +206,33 @@ void setup()
     if (!useBNO08xRVC)  Serial.println("No Serial BNO08x not Connected or Found");
 
   Serial.println("\r\nEnd setup, waiting for GPS...\r\n");
+  Autosteer_running = true;
+
+  int val = analogRead(A17);
+  Serial.printf("analog A17 is: %d\r\n", val);
+  
 }
 
 void loop()
-{
+{    
+    timeCntr ++;
     // Read incoming nmea from GPS
     if (SerialGPS->available())
     {
+        static bool printed = false;
         parser << SerialGPS->read();
+        if(!printed)
+        {
+            Serial.println("GPS connected !!\r\n");
+            printed  = true;
+        }
     }
 
     // Check for RTK via Radio
     if (SerialRTK.available())
     {
         SerialGPS->write(SerialRTK.read());
+         Serial.println(" Reading SerialRTK UART\r\n");
     }
 
     // Check for RTK via UDP
@@ -302,8 +323,24 @@ void loop()
             digitalWrite(Ethernet_Active_LED, 0);
         }
     }
+    TaskScheduler();
 
 }//End Loop
+
+void TaskScheduler(void)
+{
+    static uint32_t scheduler_last_cntr;
+    
+    if (scheduler_last_cntr != timeCntr)
+    {
+        if ((timeCntr % 100000) == 0)
+        {
+            int val = analogRead(AN_POT_MY);
+            Serial.printf("analog A17 is: %d\r\n", val);
+        }
+        scheduler_last_cntr = timeCntr;
+    }
+}
 //**************************************************************************
 
 bool calcChecksum()
