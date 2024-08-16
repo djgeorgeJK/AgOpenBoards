@@ -54,7 +54,7 @@ const int32_t baudRTK = 115200;     // most are using Xbee radios with default o
 #define GPSGREEN_LED            10      //Green (Flashing = Dual bad, ON = Dual good)
 #define AUTOSTEER_STANDBY_LED   11      //Red
 #define AUTOSTEER_ACTIVE_LED    12      //Green
-#define AN_POT_MY               A17     //41
+#define AN_POT_MY               A10     //24
 
 /*****************************************************************/
 
@@ -70,6 +70,7 @@ BNO_rvcData bnoData;
 elapsedMillis bnoTimer;
 bool bnoTrigger = false;
 bool useBNO08xRVC = false;
+bool useMachine = true;
 
 struct ConfigIP
 {
@@ -147,7 +148,7 @@ void setup()
 {
     delay(1000);                       //Small delay so serial can monitor start up
     set_arm_clock(450000000);         //Set CPU speed to 150mhz
-    Serial.print("CPU speed set to 2: ");
+    Serial.print("CPU speed set to 3: ");
     Serial.println(F_CPU_ACTUAL);
 
     pinMode(GGAReceivedLED,         OUTPUT);
@@ -336,7 +337,7 @@ void TaskScheduler(void)
         if ((timeCntr % 100000) == 0)
         {
             int val = analogRead(AN_POT_MY);
-            Serial.printf("analog A17 is: %d\r\n", val);
+//            Serial.printf("analog A10 is: %d\r\n", val);
         }
         scheduler_last_cntr = timeCntr;
     }

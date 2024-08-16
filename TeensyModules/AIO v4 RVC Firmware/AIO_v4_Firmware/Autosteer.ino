@@ -46,13 +46,14 @@ float outputWAS[] = { -50.00, -45.0, -40.0, -35.0, -30.0, -25.0, -20.0, -15.0, -
 
 //Define sensor pin for current or pressure sensor
 #define CURRENT_SENSOR_PIN A17
-#define PRESSURE_SENSOR_PIN A10
+#define PRESSURE_SENSOR_PIN A11
 
 #define CONST_180_DIVIDED_BY_PI 57.2957795130823
 
 #include <Wire.h>
 #include <EEPROM.h>
 #include "zADS1115.h"
+#include "Machine_UDP.h"
 #ifdef USE_EXTERN_ADC
     ADS1115_lite adc(ADS1115_DEFAULT_ADDRESS);     // Use this for the 16-bit version ADS1115
 #endif
@@ -79,6 +80,8 @@ uint8_t watchdogTimer = WATCHDOG_FORCE_VALUE;
 uint8_t helloFromIMU[] = { 128, 129, 121, 121, 5, 0, 0, 0, 0, 0, 71 };
 uint8_t helloFromAutoSteer[] = { 0x80, 0x81, 126, 126, 5, 0, 0, 0, 0, 0, 71 };
 int16_t helloSteerPosition = 0;
+
+ uint8_t helloFromMachine[] = { 128, 129, 123, 123, 5, 0, 0, 0, 0, 0, 71 };
 
 //fromAutoSteerData FD 253 - ActualSteerAngle*100 -5,6, SwitchByte-7, pwmDisplay-8
 uint8_t PGN_253[] = {0x80,0x81, 126, 0xFD, 8, 0, 0, 0, 0, 0,0,0,0, 0xCC };
@@ -415,7 +418,7 @@ void autosteerLoop()
         steeringPosition = (steeringPosition - 6805;
       }
     #else
-      steeringPosition = analogRead(AN_POT_MY);   // I have 10bit (0-4095)
+      steeringPosition = analogRead(AN_POT_MY);   // I have 10bit (0-4095) for 65°, it is 63dcounts per deg
       steeringPosition -= (4095/2);       // get middle
     #endif
 
@@ -683,8 +686,14 @@ void ReceiveUdp()
                 steerSettings.AckermanFix = (float)autoSteerUdpData[12] * 0.01;
 
                 
-                Serial.printf("Stearsettnigs data new counts %d\r\n",steerSettings.steerSensorCounts );
-                Serial.printf("steerSettings.wasOffset data new counts %d\r\n",steerSettings.wasOffset );
+                Serial.printf("Stearsettnigs data new counts %f\r\n", steerSettings.steerSensorCounts );
+                Serial.printf("steerSettings.wasOffset new counts %d\r\n", steerSettings.wasOffset );
+                Serial.printf(" Kp %d \r\n", steerSettings.Kp);
+                Serial.printf(" lowPWM %d \r\n", steerSettings.lowPWM);
+                Serial.printf(" minPWM %d \r\n", steerSettings.minPWM);
+                Serial.printf(" highPWM %d\r\n", steerSettings.highPWM);
+                
+                
                 //crc
                 //autoSteerUdpData[13];
 
@@ -729,24 +738,29 @@ void ReceiveUdp()
                 steerConfigInit();
 
             }//end FB
-            else if (autoSteerUdpData[3] == 200) // Hello from AgIO
+            else if (autoSteerUdpData[3] == 200) // Hello from AgIO, reply with module if exist
             {
                 if(Autosteer_running)
                 {
-                int16_t sa = (int16_t)(steerAngleActual * 100);
+                  int16_t sa = (int16_t)(steerAngleActual * 100);
 
-                helloFromAutoSteer[5] = (uint8_t)sa;
-                helloFromAutoSteer[6] = sa >> 8;
+                  helloFromAutoSteer[5] = (uint8_t)sa;
+                  helloFromAutoSteer[6] = sa >> 8;
 
-                helloFromAutoSteer[7] = (uint8_t)helloSteerPosition;
-                helloFromAutoSteer[8] = helloSteerPosition >> 8;
-                helloFromAutoSteer[9] = switchByte;
+                  helloFromAutoSteer[7] = (uint8_t)helloSteerPosition;
+                  helloFromAutoSteer[8] = helloSteerPosition >> 8;
+                  helloFromAutoSteer[9] = switchByte;
 
-                SendUdp(helloFromAutoSteer, sizeof(helloFromAutoSteer), Eth_ipDestination, portDestination);
+                  SendUdp(helloFromAutoSteer, sizeof(helloFromAutoSteer), Eth_ipDestination, portDestination);
                 }
                 if(useBNO08xRVC)
                 {
-                 SendUdp(helloFromIMU, sizeof(helloFromIMU), Eth_ipDestination, portDestination); 
+                  SendUdp(helloFromIMU, sizeof(helloFromIMU), Eth_ipDestination, portDestination); 
+                }
+
+                if(useMachine)
+                {
+                  SendUdp(helloFromMachine, sizeof(helloFromMachine), Eth_ipDestination, portDestination);
                 }
             }
 
@@ -764,6 +778,11 @@ void ReceiveUdp()
               SCB_AIRCR = 0x05FA0004; //Teensy Reset
               }
             }//end 201
+
+            else if (autoSteerUdpData[3] == 239)  // Machine data
+            {
+                Machine_ProcessData(&autoSteerUdpData[4]);
+            }
 
             //whoami
             else if (autoSteerUdpData[3] == 202)
