@@ -40,9 +40,11 @@ float outputWAS[] = { -50.00, -45.0, -40.0, -35.0, -30.0, -25.0, -20.0, -15.0, -
 #define PWM2_RPWM  4
 
 //--------------------------- Switch Input Pins ------------------------
-#define STEERSW_PIN     32
-#define WORKSW_PIN      34
-#define REMOTE_PIN      37
+#define STEERSW_PIN     28
+#define WORKSW_PIN      30
+#define REMOTE_PIN      33
+
+#define SEC1_PIN      35
 
 //Define sensor pin for current or pressure sensor
 #define CURRENT_SENSOR_PIN    A17
@@ -214,6 +216,7 @@ void autosteerSetup()
   pinMode(STEERSW_PIN, INPUT_PULLUP);
   pinMode(REMOTE_PIN, INPUT_PULLUP);
   pinMode(DIR1_RL_ENABLE, OUTPUT);
+  pinMode(SEC1_PIN, INPUT_PULLUP);
 
   // Disable digital inputs for analog input pins
   pinMode(CURRENT_SENSOR_PIN, INPUT_DISABLE);
@@ -406,6 +409,12 @@ void autosteerLoop()
     ButtState.switchByte |= (ButtState.remoteSwitch << 2);  //put remote in bit 2
     ButtState.switchByte |= (ButtState.steerSwitch << 1);   //put steerswitch status in bit 1 position
     ButtState.switchByte |= ButtState.workSwitch;
+    
+    if(!ButtState.workSwitch )
+    {
+      //Serial.printf("Work is on%d\r\n", ButtState.workSwitch);
+      
+    }
 
     //get steering position
     #ifdef USE_EXTERN_ADC
@@ -793,11 +802,11 @@ void ReceiveUdp()
             {
                 Machine_ProcessData(&autoSteerUdpData[0]);
             }
-            else if (autoSteerUdpData[3] == 238)  // Machine config
+            else if (autoSteerUdpData[3] == 238)  // Machine config PGN - 238 - EE
             {
                 Machine_ProcessConfig(&autoSteerUdpData[0]);
             }
-            else if (autoSteerUdpData[3] == 236) //EC Relay Pin Settings 
+            else if (autoSteerUdpData[3] == 236) //EC Relay Pin Settings  relayConfig PGN - 236 - EC
             {
                 Machine_ProcessRelayConfig(&autoSteerUdpData[0]);
             }

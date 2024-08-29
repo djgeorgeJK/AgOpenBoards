@@ -128,21 +128,26 @@ void Machine_Init()
        
     }
 
-    void Machine_ProcessData(uint8_t * udpData)     // 239 Machine data
-    {
-        SerialUSB.printf("Uturn %d, speed %d, hydLift %d, tramline \r\n", udpData[5],  udpData[6]);
-        
-        SerialUSB.printf("\r\n");
+    void Machine_ProcessData(uint8_t * udpData)     // 239 Machine data, goes every 10ms 
+    {        
         
         //uTurn = udpData[5];
-        //uint8_t locGpsSpeed = (float)udpData[6];//actual speed times 4, single uint8_t
+        uint8_t localGpsSpeed = (float)udpData[6];//actual speed times 10
 
         uint8_t hydLift = udpData[7];   // when change, value 1 - start Lower, value 2 - rising
         uint8_t tramline = udpData[8];  //bit 0 is right bit 1 is left
 
         // From AIO goes 16 bit status of sections
-        uint16_t sectionStates = (udpData[12] << 8 ) | udpData[11];          // read relay control from AgOpenGPS
+        uint16_t sectionStates = ((uint16_t)udpData[12] << 8 ) | (uint16_t)udpData[11];          // read relay control from AgOpenGPS sc1to8 = 11;sc9to16 = 12;
         
+        SerialUSB.printf("Data 239 mchine");
+        for (uint8_t i=7;i < 25; i++)
+        {
+            Serial.printf("%3d, ", udpData[i]);
+        }
+        
+        SerialUSB.printf("\r\n");
+
 
         if (aogConfig.isRelayActiveHigh)
         {
@@ -172,10 +177,23 @@ void Machine_Init()
         }
     }
 
-    void Machine_ProcessConfig(uint8_t * udpdata)
+    void Machine_ProcessConfig(uint8_t * udpData)   // PGN - 238 - EE
     {
+        aogConfig.raiseTime = udpData[5];
+        aogConfig.lowerTime = udpData[6];
+        aogConfig.enableToolLift = udpData[7];
+        //set1 
+        uint8_t sett = udpData[8];  //setting0     
+        if (bitRead(sett, 0)) aogConfig.isRelayActiveHigh = 1; else aogConfig.isRelayActiveHigh = 0;
+        aogConfig.user1 = udpData[9];
+        aogConfig.user2 = udpData[10];
+        aogConfig.user3 = udpData[11];
+        aogConfig.user4 = udpData[12];
 
+        //save in EEPROM and restart
+        EEPROM.put(6, aogConfig);
     }
+
     void Machine_ProcessRelayConfig(uint8_t * udpData)  // 236 machine Relay Pin Settings 
     {            
         //assignment pin to section number. E.g in PinToSection[1] will be # 9 li (th section)
@@ -189,8 +207,8 @@ void Machine_Init()
         EEPROM.put(20, PinToSection);
     }
     
-  
-
+    
+    /* HW write of relays*/
     void Machine_ProcessRelays(void)
     {          
         // we need to assign variable of relay state to proper pin.
