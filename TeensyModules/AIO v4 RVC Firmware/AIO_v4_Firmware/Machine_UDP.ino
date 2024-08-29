@@ -8,50 +8,88 @@
    
     //-----------------------------------------------------------------------------------------------
 
-    #include <EEPROM.h> 
-    #include <Wire.h>
-    #include "Arduino.h"
-        
-    //Variables for config - 0 is false  
-    struct Config {
-        uint8_t raiseTime = 2;
-        uint8_t lowerTime = 4;
-        uint8_t enableToolLift = 0;
-        uint8_t isRelayActiveHigh = 0; //if zero, active low (default)
+/********************************************************************************
+ * INCLUDE DIRECTIVES
+ ********************************************************************************/
+#include <EEPROM.h> 
+#include <Wire.h>
+#include "Arduino.h"
 
-        uint8_t user1 = 0; //user defined values set in machine tab
-        uint8_t user2 = 0;
-        uint8_t user3 = 0;
-        uint8_t user4 = 0;
+/********************************************************************************
+ * DEFINITIONS, ENUMS, STRUCTURES AND TYPEDEFS
+ ********************************************************************************/     
 
-    };  Config aogConfig;   //4 bytes
+typedef struct HydLiftState
+{
+    uint8_t LiftLastState;
+    uint8_t timerRising;
+    uint8_t timerLovering;
+}hydLiftState_t;
+/********************************************************************************
+ * VARIABLE DECLARATIONS
+ ********************************************************************************/
+//Variables for config - 0 is false  
+struct Config {
+    uint8_t raiseTime = 2;
+    uint8_t lowerTime = 4;
+    uint8_t enableToolLift = 0;
+    uint8_t isRelayActiveHigh = 0; //if zero, active low (default)
 
-    //Program counter reset
+    uint8_t user1 = 0; //user defined values set in machine tab
+    uint8_t user2 = 0;
+    uint8_t user3 = 0;
+    uint8_t user4 = 0;
+
+};  Config aogConfig;   //4 bytes
+
+
+/* Status of hydraulic,tramlines and Sections  */
+bool TramLineL, TramLineR;
+uint16_t SectionState;      // each bit means one of 16 section
+hydLiftState_t HydraulicLift;
+
+// define pins to available forSection controls listed in app as Pin 1 .. pin24 which is index 0..23
+const uint8_t hwPinAsignment [] = {34,35,36,37};   //so pin1 will be tennsy hwio7
+const uint8_t hwPinTramAsignment [] = {40,41};
+
+/*
+* Functions as below assigned to pins
+*/   
+
+/* This aray holds definition of Which virtual Pin 1..24 holds which functionlaity
+*  0: - not selected
+*  1..16:  Section 1,Section 2,Section 3,Section 4,Section 5,Section 6,Section 7,Section 8,
+*          Section 9, Section 10, Section 11, Section 12, Section 13, Section 14, Section 15, Section 16,
+*  17,18   Hyd Up, Hyd Down,
+*  19      Tramline,
+*  20: Geo Stop
+*  21,22,23 - unused so far*/
+uint8_t PinToSection[24] = { 1,2,3,0 };
+
+
+/********************************************************************************
+ * PRIVATE FUNCTION PROTOTYPES
+ ********************************************************************************/
+  //Program counter reset
     void(*resetFunc) (void) = 0;
+/********************************************************************************
+ * PUBLIC FUNCTION DECLARATIONS
+ ********************************************************************************/
 
+void Machine_Init()
+{
+    for(uint i = 0; i< sizeof(hwPinAsignment); ++i)
+    {
+        pinMode(hwPinAsignment[i], OUTPUT);
+    }
+    pinMode(hwPinTramAsignment[0], OUTPUT);
+    pinMode(hwPinTramAsignment[1], OUTPUT);
+    uint16_t a;
+    EEPROM.get(0, a);              // read identifier
 
-    /*
-    * Functions as below assigned to pins
-    0: -
-    1 thru 16: Section 1,Section 2,Section 3,Section 4,Section 5,Section 6,Section 7,Section 8,
-                Section 9, Section 10, Section 11, Section 12, Section 13, Section 14, Section 15, Section 16,
-    17,18    Hyd Up, Hyd Down,
-    19 Tramline,
-    20: Geo Stop
-    21,22,23 - unused so far*/    
-    uint8_t pin[] = { 1,2,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
-
-    //read value from Machine data and set 1 or zero according to list
-    uint8_t relayState[] = { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
-
-    //hello from AgIO
-    //uint8_t helloFromMachine[] = { 128, 129, 123, 123, 5, 0, 0, 0, 0, 0, 71 };
-
-   uint8_t tramline = 0;
-      
+}    
     void Machine_setup()
     {
-
         
         // EEPROM.get(0, EEread);              // read identifier
 
@@ -90,7 +128,7 @@
        
     }
 
-    void Machine_ProcessData(uint8_t * udpData)
+    void Machine_ProcessData(uint8_t * udpData)     // 239 Machine data
     {
         SerialUSB.printf("Uturn %d, speed %d, hydLift %d, tramline \r\n", udpData[5],  udpData[6]);
         
@@ -99,52 +137,71 @@
         //uTurn = udpData[5];
         //uint8_t locGpsSpeed = (float)udpData[6];//actual speed times 4, single uint8_t
 
-        //hydLift = udpData[7];
-        tramline = udpData[8];  //bit 0 is right bit 1 is left
+        uint8_t hydLift = udpData[7];   // when change, value 1 - start Lower, value 2 - rising
+        uint8_t tramline = udpData[8];  //bit 0 is right bit 1 is left
 
-        //relayLo = udpData[11];          // read relay control from AgOpenGPS
-        //relayHi = udpData[12];
+        // From AIO goes 16 bit status of sections
+        uint16_t sectionStates = (udpData[12] << 8 ) | udpData[11];          // read relay control from AgOpenGPS
+        
 
         if (aogConfig.isRelayActiveHigh)
         {
             tramline = 255 - tramline;
-            //relayLo = 255 - relayLo;
-            //relayHi = 255 - relayHi;
+            sectionStates = ~sectionStates;
         }
-           
+
+        // Fill global variables
+        TramLineR = tramline & 0x01;
+        TramLineL = tramline & 0x02;
+        SectionState = sectionStates;
+
+        if ( hydLift != HydraulicLift.LiftLastState)
+        {
+            HydraulicLift.LiftLastState = hydLift;    
+            switch (hydLift)
+            {                
+            case 1: //lower
+                HydraulicLift.timerLovering = aogConfig.lowerTime * 5;
+                break;                
+            case 2: //raise
+                HydraulicLift.timerRising = aogConfig.raiseTime * 5;
+                break;
+            default: 
+            break;
+            }
+        }
     }
 
     void Machine_ProcessConfig(uint8_t * udpdata)
     {
 
     }
-    void SetRelays(void)
-    {
-              //GeoStop
-      
+    void Machine_ProcessRelayConfig(uint8_t * udpData)  // 236 machine Relay Pin Settings 
+    {            
+        //assignment pin to section number. E.g in PinToSection[1] will be # 9 li (th section)
+        for (uint8_t i = 0; i < 24; i++)
+        {
+            PinToSection[i] = udpData[i + 5];        // 5 is first data byte
+            Serial.printf("REle %d\r\n", PinToSection[i]);
+        }
 
-        if (pin[0]) digitalWrite(4, relayState[pin[0] - 1]);
-        if (pin[1]) digitalWrite(5, relayState[pin[1] - 1]);
-        if (pin[2]) digitalWrite(6, relayState[pin[2] - 1]);
-        if (pin[3]) digitalWrite(7, relayState[pin[3] - 1]);
+        //save in EEPROM and restart
+        EEPROM.put(20, PinToSection);
+    }
+    
+  
 
-        if (pin[4]) digitalWrite(8, relayState[pin[4] - 1]);
-        if (pin[5]) digitalWrite(9, relayState[pin[5] - 1]);
+    void Machine_ProcessRelays(void)
+    {          
+        // we need to assign variable of relay state to proper pin.
+        // when value is 0, like not assigned
 
-        //if (pin[6]) digitalWrite(10, relayState[pin[6]-1]);
-        //if (pin[7]) digitalWrite(11, relayState[pin[7]-1]);
-
-        //if (pin[8]) digitalWrite(12, relayState[pin[8]-1]);
-        //if (pin[9]) digitalWrite(4, relayState[pin[9]-1]);
-
-        //if (pin[10]) digitalWrite(IO#Here, relayState[pin[10]-1]);
-        //if (pin[11]) digitalWrite(IO#Here, relayState[pin[11]-1]);
-        //if (pin[12]) digitalWrite(IO#Here, relayState[pin[12]-1]);
-        //if (pin[13]) digitalWrite(IO#Here, relayState[pin[13]-1]);
-        //if (pin[14]) digitalWrite(IO#Here, relayState[pin[14]-1]);
-        //if (pin[15]) digitalWrite(IO#Here, relayState[pin[15]-1]);
-        //if (pin[16]) digitalWrite(IO#Here, relayState[pin[16]-1]);
-        //if (pin[17]) digitalWrite(IO#Here, relayState[pin[17]-1]);
-        //if (pin[18]) digitalWrite(IO#Here, relayState[pin[18]-1]);
-        //if (pin[19]) digitalWrite(IO#Here, relayState[pin[19]-1]);
+        if (PinToSection[0]) digitalWrite(hwPinAsignment[0], SectionState & (1 << (PinToSection[0] - 1)));    // do pinu 4 zapis hodnotu co prisla v Cfg Pinu 1
+        
+        for (uint i = 0; i < sizeof(hwPinAsignment); ++i)
+        {
+            if (PinToSection[i]) digitalWrite(hwPinAsignment[i], SectionState & (1 << (PinToSection[i] - 1)));
+        }
+        digitalWrite(9, TramLineL);
+        digitalWrite(10, TramLineR);
     }

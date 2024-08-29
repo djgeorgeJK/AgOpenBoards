@@ -324,7 +324,7 @@ public:
   void addHandler(const char *inToken, NMEAHandler inHandler) {
     if (mHandlerCount < S) {
       if (getHandler(inToken) == -1) {
-        strncpy(mHandlers[mHandlerCount].mToken, inToken, 5);
+        strncpy(mHandlers[mHandlerCount].mToken, inToken, 5 + 1);
         mHandlers[mHandlerCount].mToken[5] = '\0';
         mHandlers[mHandlerCount].mHandler = inHandler;
         mHandlerCount++;

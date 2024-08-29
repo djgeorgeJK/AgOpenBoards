@@ -54,6 +54,8 @@ float outputWAS[] = { -50.00, -45.0, -40.0, -35.0, -30.0, -25.0, -20.0, -15.0, -
 #include <EEPROM.h>
 #include "zADS1115.h"
 #include "Machine_UDP.h"
+
+
 #ifdef USE_EXTERN_ADC
     ADS1115_lite adc(ADS1115_DEFAULT_ADDRESS);     // Use this for the 16-bit version ADS1115
 #endif
@@ -68,7 +70,7 @@ float outputWAS[] = { -50.00, -45.0, -40.0, -35.0, -30.0, -25.0, -20.0, -15.0, -
 uint8_t autoSteerUdpData[UDP_TX_PACKET_MAX_SIZE];  // Buffer For Receiving UDP Data
 
 //loop time variables in microseconds
-const uint16_t LOOP_TIME = 25;  //40Hz
+const uint16_t LOOP_TIME = 25;  //25ms - 40Hz
 uint32_t autsteerLastTime = LOOP_TIME;
 uint32_t currentTime = LOOP_TIME;
 
@@ -105,7 +107,16 @@ uint8_t relay = 0, relayHi = 0, uTurn = 0;
 uint8_t tram = 0;
 
 //Switches
-uint8_t remoteSwitch = 0, workSwitch = 0, steerSwitch = 1, switchByte = 0;
+struct Switches
+{
+  uint8_t remoteSwitch = 0;
+  uint8_t workSwitch = 0;
+  uint8_t steerSwitch = 1;
+  uint8_t switchByte = 0;
+  uint8_t currentState = 1;
+  uint8_t reading;
+  uint8_t previous = 0;
+}; Switches ButtState;
 
 //On Off
 uint8_t guidanceStatus = 0;
@@ -128,7 +139,6 @@ float errorAbs = 0;
 float highLowPerDeg = 0;
 
 //Steer switch button  ***********************************************************************************************************
-uint8_t currentState = 1, reading, previous = 0;
 uint8_t pulseCount = 0; // Steering Wheel Encoder
 bool encEnable = false; //debounce flag
 uint8_t thisEnc = 0, lastEnc = 0;
@@ -288,26 +298,26 @@ void autosteerLoop()
     if (watchdogTimer++ > 250)
     {
         watchdogTimer = WATCHDOG_FORCE_VALUE;
-        steerSwitch = 1; // reset values like it turned off
-        currentState = 1;
+        ButtState.steerSwitch = 1; // reset values like it turned off
+        ButtState.currentState = 1;
     }
 
     //read all the switches
-    workSwitch = digitalRead(WORKSW_PIN);       // read work switch
+    ButtState.workSwitch = digitalRead(WORKSW_PIN);       // read work switch
 
     //Engage steering via 1 PCB Button or 2 Tablet
 
     // 1 PCB Button pressed?
-    reading = digitalRead(STEERSW_PIN);
+    ButtState.reading = digitalRead(STEERSW_PIN);
 
     if (steerConfig.SteerSwitch == 1)
     {
         // Switch is off so reset ready for next switch on
-        if (reading == HIGH)
+        if (ButtState.reading == HIGH)
         {
-            currentState = 1;
-            steerSwitch = 1;
-            previous = reading;
+            ButtState.currentState = 1;
+            ButtState.steerSwitch = 1;
+            ButtState.previous = ButtState.reading;
         }
     }
 
@@ -316,20 +326,20 @@ void autosteerLoop()
     {
         if (guidanceStatus == 1)    //Must have changed Off >> On
         {
-            currentState = 0;
-            steerSwitch = 0;
+            ButtState.currentState = 0;
+            ButtState.steerSwitch = 0;
         }
     }
 
     // If AOG has stopped steering, wait then turn off steerswitch ready for next engage.
     static int switchCounter = 0;
 
-    if (steerSwitch == 0 && guidanceStatus == 0)
+    if (ButtState.steerSwitch == 0 && guidanceStatus == 0)
     {
         if (switchCounter++ > 30)
         {
-            currentState = 1;
-            steerSwitch = 1;
+            ButtState.currentState = 1;
+            ButtState.steerSwitch = 1;
         }
     }
     else
@@ -338,27 +348,27 @@ void autosteerLoop()
     }
 
     // Arduino software button code
-    if (reading == LOW && previous == HIGH)
+    if (ButtState.reading == LOW && ButtState.previous == HIGH)
     {
-        if (currentState == 1)
+        if (ButtState.currentState == 1)
         {
-            currentState = 0;
-            steerSwitch = 0;
+            ButtState.currentState = 0;
+            ButtState.steerSwitch = 0;
         }
         else
         {
-            currentState = 1;
-            steerSwitch = 1;
+            ButtState.currentState = 1;
+            ButtState.steerSwitch = 1;
         }
     }
-    previous = reading;
+    ButtState.previous = ButtState.reading;
 
     // Encoder sensor?
     if (steerConfig.ShaftEncoder && pulseCount >= steerConfig.PulseCountMax)
     {
-      steerSwitch = 1; 
-      currentState = 1;
-      previous = 0;
+      ButtState.steerSwitch = 1; 
+      ButtState.currentState = 1;
+      ButtState.previous = 0;
     }
 
     // Pressure sensor?
@@ -369,9 +379,9 @@ void autosteerLoop()
       sensorReading = sensorReading * 0.6 + sensorSample * 0.4;
       if (sensorReading >= steerConfig.PulseCountMax)
       {
-          steerSwitch = 1; 
-          currentState = 1;
-          previous = 0;
+          ButtState.steerSwitch = 1; 
+          ButtState.currentState = 1;
+          ButtState.previous = 0;
       }
     }
 
@@ -385,17 +395,17 @@ void autosteerLoop()
 
       if (sensorReading >= steerConfig.PulseCountMax)
       {
-          steerSwitch = 1; 
-          currentState = 1;
-          previous = 0;
+          ButtState.steerSwitch = 1; 
+          ButtState.currentState = 1;
+          ButtState.previous = 0;
       }
     }
 
-    remoteSwitch = digitalRead(REMOTE_PIN);
-    switchByte = 0;
-    switchByte |= (remoteSwitch << 2);  //put remote in bit 2
-    switchByte |= (steerSwitch << 1);   //put steerswitch status in bit 1 position
-    switchByte |= workSwitch;
+    ButtState.remoteSwitch = digitalRead(REMOTE_PIN);
+    ButtState.switchByte = 0;
+    ButtState.switchByte |= (ButtState.remoteSwitch << 2);  //put remote in bit 2
+    ButtState.switchByte |= (ButtState.steerSwitch << 1);   //put steerswitch status in bit 1 position
+    ButtState.switchByte |= ButtState.workSwitch;
 
     //get steering position
     #ifdef USE_EXTERN_ADC
@@ -443,9 +453,9 @@ void autosteerLoop()
     //WAS fault or over 25km, cut steering
     if ((steerAngleActual < inputWAS[0]) || (steerAngleActual > inputWAS[20]) || gpsSpeed > 25)
     {
-        steerSwitch = 1; // reset values like it turned off
-        currentState = 1;
-        previous = 0;
+        ButtState.steerSwitch = 1; // reset values like it turned off
+        ButtState.currentState = 1;
+        ButtState.previous = 0;
         watchdogTimer = WATCHDOG_FORCE_VALUE;
     }
 
@@ -586,7 +596,7 @@ void ReceiveUdp()
 
                 //Serial.println(gpsSpeed);
 
-                if ((bitRead(guidanceStatus, 0) == 0) /* || (gpsSpeed < 0.1)*/ || (steerSwitch == 1))
+                if ((bitRead(guidanceStatus, 0) == 0) /* || (gpsSpeed < 0.1)*/ || (ButtState.steerSwitch == 1))
                 {
                     watchdogTimer = WATCHDOG_FORCE_VALUE; //turn off steering motor
                 }
@@ -620,7 +630,7 @@ void ReceiveUdp()
                 PGN_253[9] = (uint8_t)8888;
                 PGN_253[10] = 8888 >> 8;
 
-                PGN_253[11] = switchByte;
+                PGN_253[11] = ButtState.switchByte;
                 PGN_253[12] = (uint8_t)pwmDisplay;
 
                 //checksum
@@ -749,7 +759,7 @@ void ReceiveUdp()
 
                   helloFromAutoSteer[7] = (uint8_t)helloSteerPosition;
                   helloFromAutoSteer[8] = helloSteerPosition >> 8;
-                  helloFromAutoSteer[9] = switchByte;
+                  helloFromAutoSteer[9] = ButtState.switchByte;
 
                   SendUdp(helloFromAutoSteer, sizeof(helloFromAutoSteer), Eth_ipDestination, portDestination);
                 }
@@ -787,7 +797,10 @@ void ReceiveUdp()
             {
                 Machine_ProcessConfig(&autoSteerUdpData[0]);
             }
-
+            else if (autoSteerUdpData[3] == 236) //EC Relay Pin Settings 
+            {
+                Machine_ProcessRelayConfig(&autoSteerUdpData[0]);
+            }
             //whoami
             else if (autoSteerUdpData[3] == 202)
             {

@@ -112,7 +112,7 @@ bool dualReadyGGA = false;
 bool dualReadyRelPos = false;
 
 elapsedMillis GGAReadyTime = 10000;
-elapsedMillis ethernetLinkCheck = 1000;
+elapsedMillis EthernetCheck_msCounter = 1000;
 
 //Dual
 double headingcorr = 900;  //90deg heading correction (90deg*10)
@@ -141,11 +141,11 @@ bool Autosteer_running = true; //Auto set off in autosteer setup
 float roll = 0;
 float pitch = 0;
 float yaw = 0;
-static uint32_t timeCntr = 0;
 
 // Setup procedure ------------------------
 void setup()
 {
+    
     delay(1000);                       //Small delay so serial can monitor start up
     set_arm_clock(450000000);         //Set CPU speed to 150mhz
     Serial.print("CPU speed set to 3: ");
@@ -215,8 +215,7 @@ void setup()
 }
 
 void loop()
-{    
-    timeCntr ++;
+{       
     // Read incoming nmea from GPS
     if (SerialGPS->available())
     {
@@ -310,11 +309,12 @@ void loop()
         useDual = false;
     }
 
-    if (ethernetLinkCheck > 10000)
+    // ethernet milisecond counter elapsed
+    if (EthernetCheck_msCounter > 10000)
     {
         if (Ethernet.linkStatus() == LinkON)
         {
-            ethernetLinkCheck = 0;
+            EthernetCheck_msCounter = 0;
             digitalWrite(Power_on_LED, 0);
             digitalWrite(Ethernet_Active_LED, 1);
         }
@@ -332,14 +332,20 @@ void TaskScheduler(void)
 {
     static uint32_t scheduler_last_cntr;
     
-    if (scheduler_last_cntr != timeCntr)
+    if (scheduler_last_cntr != systick_millis_count)
     {
-        if ((timeCntr % 100000) == 0)
+        if ((systick_millis_count % 1000) == 0)
         {
             //int val = analogRead(AN_POT_MY);
-//            Serial.printf("analog A10 is: %d\r\n", val);
+            //Serial.printf("analog A10 is: %d\r\n", val);
+            //Serial.printf("1 sec print\r\n");
         }
-        scheduler_last_cntr = timeCntr;
+        scheduler_last_cntr = systick_millis_count;
+
+        if ((systick_millis_count % 2) == 0)    // each 2 ms
+        {
+            //Buttons_Sample();
+        }
     }
 }
 //**************************************************************************
