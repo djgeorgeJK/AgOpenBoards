@@ -31,22 +31,22 @@ float outputWAS[] = { -50.00, -45.0, -40.0, -35.0, -30.0, -25.0, -20.0, -15.0, -
 //Connect ground only for cytron, Connect Ground and +5v for IBT2
 
 //Dir1 for Cytron Dir, Both L and R enable for IBT2
-#define DIR1_RL_ENABLE  4
+#define DIR1_RL_ENABLE  2
 
-//PWM1 for Cytron PWM, Left PWM for IBT2
-#define PWM1_LPWM  2
+//PWM pin for Cytron PWM, Left PWM for IBT2
+#define PWM1_LPWM  3
 
 //Not Connected for Cytron, Right PWM for IBT2
-#define PWM2_RPWM  3
+#define PWM2_RPWM  4
 
 //--------------------------- Switch Input Pins ------------------------
-#define STEERSW_PIN 32
-#define WORKSW_PIN 34
-#define REMOTE_PIN 37
+#define STEERSW_PIN     32
+#define WORKSW_PIN      34
+#define REMOTE_PIN      37
 
 //Define sensor pin for current or pressure sensor
-#define CURRENT_SENSOR_PIN A17
-#define PRESSURE_SENSOR_PIN A11
+#define CURRENT_SENSOR_PIN    A17
+#define PRESSURE_SENSOR_PIN   A11
 
 #define CONST_180_DIVIDED_BY_PI 57.2957795130823
 
@@ -781,7 +781,11 @@ void ReceiveUdp()
 
             else if (autoSteerUdpData[3] == 239)  // Machine data
             {
-                Machine_ProcessData(&autoSteerUdpData[4]);
+                Machine_ProcessData(&autoSteerUdpData[0]);
+            }
+            else if (autoSteerUdpData[3] == 238)  // Machine config
+            {
+                Machine_ProcessConfig(&autoSteerUdpData[0]);
             }
 
             //whoami

@@ -336,7 +336,7 @@ void TaskScheduler(void)
     {
         if ((timeCntr % 100000) == 0)
         {
-            int val = analogRead(AN_POT_MY);
+            //int val = analogRead(AN_POT_MY);
 //            Serial.printf("analog A10 is: %d\r\n", val);
         }
         scheduler_last_cntr = timeCntr;

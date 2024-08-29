@@ -3,7 +3,7 @@
 
     //-----------------------------------------------------------------------------------------------
     // Change this number to reset and reload default parameters To EEPROM
-    #define EEP_Ident 0x5425  
+    //#define EEP_Ident 0x5425  
     
    
     //-----------------------------------------------------------------------------------------------
@@ -47,8 +47,8 @@
     //hello from AgIO
     //uint8_t helloFromMachine[] = { 128, 129, 123, 123, 5, 0, 0, 0, 0, 0, 71 };
 
-   
-   
+   uint8_t tramline = 0;
+      
     void Machine_setup()
     {
 
@@ -90,13 +90,33 @@
        
     }
 
-    void Machine_ProcessData(uint8_t * udpdata)
+    void Machine_ProcessData(uint8_t * udpData)
     {
-        for (int i = 0; i < 10; i++)
-        {
-            SerialUSB.printf("Dat %d", udpdata[i]);
-        }
+        SerialUSB.printf("Uturn %d, speed %d, hydLift %d, tramline \r\n", udpData[5],  udpData[6]);
+        
         SerialUSB.printf("\r\n");
+        
+        //uTurn = udpData[5];
+        //uint8_t locGpsSpeed = (float)udpData[6];//actual speed times 4, single uint8_t
+
+        //hydLift = udpData[7];
+        tramline = udpData[8];  //bit 0 is right bit 1 is left
+
+        //relayLo = udpData[11];          // read relay control from AgOpenGPS
+        //relayHi = udpData[12];
+
+        if (aogConfig.isRelayActiveHigh)
+        {
+            tramline = 255 - tramline;
+            //relayLo = 255 - relayLo;
+            //relayHi = 255 - relayHi;
+        }
+           
+    }
+
+    void Machine_ProcessConfig(uint8_t * udpdata)
+    {
+
     }
     void SetRelays(void)
     {
