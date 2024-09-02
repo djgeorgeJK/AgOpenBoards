@@ -28,6 +28,8 @@ void Machine_ProcessData(uint8_t * udpdata);
 void Machine_ProcessConfig(uint8_t * udpdata);
 void Machine_ProcessRelayConfig(uint8_t * udpData);
 
+/* Machine can send data to Aog by message data[3] == 123, data[5,6] are section status - je to zprava hello from machine helloFromMachine */
+
 // #ifdef __cplusplus
 // }
 // #endif

@@ -128,7 +128,7 @@ void Machine_Init()
        
     }
 
-    void Machine_ProcessData(uint8_t * udpData)     // 239 Machine data, goes every 10ms 
+    void Machine_ProcessData(uint8_t * udpData)     // 239 Machine data, goes from AOG every 10ms 
     {        
         
         //uTurn = udpData[5];
@@ -177,7 +177,7 @@ void Machine_Init()
         }
     }
 
-    void Machine_ProcessConfig(uint8_t * udpData)   // PGN - 238 - EE
+    void Machine_ProcessConfig(uint8_t * udpData)   // PGN - 238 - EE - goes when Machine module setup- 
     {
         aogConfig.raiseTime = udpData[5];
         aogConfig.lowerTime = udpData[6];
@@ -185,7 +185,8 @@ void Machine_Init()
         //set1 
         uint8_t sett = udpData[8];  //setting0     
         if (bitRead(sett, 0)) aogConfig.isRelayActiveHigh = 1; else aogConfig.isRelayActiveHigh = 0;
-        aogConfig.user1 = udpData[9];
+        
+        aogConfig.user1 = udpData[9];   // in AOG are 4 user values to send heree.g some specific config of teensy
         aogConfig.user2 = udpData[10];
         aogConfig.user3 = udpData[11];
         aogConfig.user4 = udpData[12];

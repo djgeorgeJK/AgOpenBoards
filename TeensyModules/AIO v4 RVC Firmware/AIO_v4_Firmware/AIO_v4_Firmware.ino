@@ -148,7 +148,7 @@ void setup()
     
     delay(1000);                       //Small delay so serial can monitor start up
     set_arm_clock(450000000);         //Set CPU speed to 150mhz
-    Serial.print("CPU speed set to 3: ");
+    Serial.print("CPU speed set to : ");
     Serial.println(F_CPU_ACTUAL);
 
     pinMode(GGAReceivedLED,         OUTPUT);
