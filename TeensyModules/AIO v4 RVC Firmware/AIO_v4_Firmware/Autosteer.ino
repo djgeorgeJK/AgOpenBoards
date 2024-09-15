@@ -40,9 +40,10 @@ float outputWAS[] = { -50.00, -45.0, -40.0, -35.0, -30.0, -25.0, -20.0, -15.0, -
 #define PWM2_RPWM  4
 
 //--------------------------- Switch Input Pins ------------------------
-#define STEERSW_PIN     28
-#define WORKSW_PIN      30
-#define REMOTE_PIN      33
+#define STEERSW_PIN     32
+#define WORKSW_PIN      31    
+#define REMOTE_PIN      30
+#define DEBUG_PIN       33
 
 #define SEC1_PIN      35
 
@@ -189,102 +190,103 @@ void steerSettingsInit()
 
 void autosteerSetup()
 {
-  //PWM rate settings. Set them both the same!!!!
-  /*  PWM Frequency ->
-       490hz (default) = 0
-       122hz = 1
-       3921hz = 2
-  */
-  if (PWM_Frequency == 0)
-  {
-    analogWriteFrequency(PWM1_LPWM, 490);
-    analogWriteFrequency(PWM2_RPWM, 490);
-  }
-  else if (PWM_Frequency == 1)
-  {
-    analogWriteFrequency(PWM1_LPWM, 122);
-    analogWriteFrequency(PWM2_RPWM, 122);
-  }
-  else if (PWM_Frequency == 2)
-  {
-    analogWriteFrequency(PWM1_LPWM, 3921);
-    analogWriteFrequency(PWM2_RPWM, 3921);
-  }
-
-  //keep pulled high and drag low to activate, noise free safe
-  pinMode(WORKSW_PIN, INPUT_PULLUP);
-  pinMode(STEERSW_PIN, INPUT_PULLUP);
-  pinMode(REMOTE_PIN, INPUT_PULLUP);
-  pinMode(DIR1_RL_ENABLE, OUTPUT);
-  pinMode(SEC1_PIN, INPUT_PULLUP);
-
-  // Disable digital inputs for analog input pins
-  pinMode(CURRENT_SENSOR_PIN, INPUT_DISABLE);
-  pinMode(PRESSURE_SENSOR_PIN, INPUT_DISABLE);
-
-  //set up communication
-  #ifdef USE_EXTERN_ADC
-    Wire1.end();
-    Wire1.begin();
-      
-    // Check ADC 
-    if(adc.testConnection())
+    //PWM rate settings. Set them both the same!!!!
+    /*  PWM Frequency ->
+          490hz (default) = 0
+          122hz = 1
+          3921hz = 2
+    */
+    if (PWM_Frequency == 0)
     {
-      Serial.println("ADC Connecton OK");
+      analogWriteFrequency(PWM1_LPWM, 490);
+      analogWriteFrequency(PWM2_RPWM, 490);
+    }
+    else if (PWM_Frequency == 1)
+    {
+      analogWriteFrequency(PWM1_LPWM, 122);
+      analogWriteFrequency(PWM2_RPWM, 122);
+    }
+    else if (PWM_Frequency == 2)
+    {
+      analogWriteFrequency(PWM1_LPWM, 3921);
+      analogWriteFrequency(PWM2_RPWM, 3921);
+    }
+
+    //keep pulled high and drag low to activate, noise free safe
+    pinMode(WORKSW_PIN, INPUT_PULLUP);
+    pinMode(STEERSW_PIN, INPUT_PULLUP);
+    pinMode(REMOTE_PIN, INPUT_PULLUP);
+    pinMode(DIR1_RL_ENABLE, OUTPUT);
+    
+    pinMode(DEBUG_PIN, OUTPUT);
+    pinMode(SEC1_PIN, INPUT_PULLUP);
+
+    // Disable digital inputs for analog input pins
+    pinMode(CURRENT_SENSOR_PIN, INPUT_DISABLE);
+    pinMode(PRESSURE_SENSOR_PIN, INPUT_DISABLE);
+
+    //set up communication
+    #ifdef USE_EXTERN_ADC
+      Wire1.end();
+      Wire1.begin();
+        
+      // Check ADC 
+      if(adc.testConnection())
+      {
+        Serial.println("ADC Connecton OK");
+      }
+      else
+      {
+        Serial.println("ADC Connecton FAILED!");
+        Autosteer_running = false;
+      }
+    #endif
+
+    //50Khz I2C
+    //TWBR = 144;   //Is this needed?
+
+    EEPROM.get(0, EEread);              // read identifier
+
+    if (EEread != EEP_Ident)            // check on first start and write EEPROM
+    {
+      EEPROM.put(0, EEP_Ident);
+      EEPROM.put(10, steerSettings);
+      EEPROM.put(40, steerConfig);
+      EEPROM.put(60, networkAddress);    
     }
     else
     {
-      Serial.println("ADC Connecton FAILED!");
-      Autosteer_running = false;
+      EEPROM.get(10, steerSettings);     // read the Settings
+      EEPROM.get(40, steerConfig);
+      EEPROM.get(60, networkAddress); 
     }
-  #endif
 
-  //50Khz I2C
-  //TWBR = 144;   //Is this needed?
+    steerSettingsInit();
+    steerConfigInit();
 
-  EEPROM.get(0, EEread);              // read identifier
+    if (Autosteer_running) 
+    {
+      Serial.println("Autosteer running, waiting for AgOpenGPS");
+      // Autosteer Led goes Red if ADS1115 is found
+      digitalWrite(AUTOSTEER_ACTIVE_LED, 0);
+      digitalWrite(AUTOSTEER_STANDBY_LED, 1);
+    }
+    else
+    {
+      Autosteer_running = false;  //Turn off auto steer if no ethernet (Maybe running T4.0)
+    //    if(!Ethernet_running)Serial.println("Ethernet not available");
+      Serial.println("Autosteer disabled, GPS only mode");   
+      return;
+    }
 
-  if (EEread != EEP_Ident)            // check on first start and write EEPROM
-  {
-    EEPROM.put(0, EEP_Ident);
-    EEPROM.put(10, steerSettings);
-    EEPROM.put(40, steerConfig);
-    EEPROM.put(60, networkAddress);    
-  }
-  else
-  {
-    EEPROM.get(10, steerSettings);     // read the Settings
-    EEPROM.get(40, steerConfig);
-    EEPROM.get(60, networkAddress); 
-  }
-
-  steerSettingsInit();
-  steerConfigInit();
-
-  if (Autosteer_running) 
-  {
-    Serial.println("Autosteer running, waiting for AgOpenGPS");
-    // Autosteer Led goes Red if ADS1115 is found
-    digitalWrite(AUTOSTEER_ACTIVE_LED, 0);
-    digitalWrite(AUTOSTEER_STANDBY_LED, 1);
-  }
-  else
-  {
-    Autosteer_running = false;  //Turn off auto steer if no ethernet (Maybe running T4.0)
-//    if(!Ethernet_running)Serial.println("Ethernet not available");
-    Serial.println("Autosteer disabled, GPS only mode");   
-    return;
-  }
-
-  #ifdef USE_EXTERN_ADC
-    adc.setSampleRate(ADS1115_REG_CONFIG_DR_128SPS); //128 samples per second
-    adc.setGain(ADS1115_REG_CONFIG_PGA_6_144V);
-  #endif
+    #ifdef USE_EXTERN_ADC
+      adc.setSampleRate(ADS1115_REG_CONFIG_DR_128SPS); //128 samples per second
+      adc.setGain(ADS1115_REG_CONFIG_PGA_6_144V);
+    #endif
 }// End of Setup
 
 void autosteerLoop()
 {
-
   ReceiveUdp();
 
   // Loop triggers every 100 msec and sends back gyro heading, and roll, steer angle etc
@@ -318,6 +320,7 @@ void autosteerLoop()
         // Switch is off so reset ready for next switch on
         if (ButtState.reading == HIGH)
         {
+           Serial.printf("Sterr active\r\n");
             ButtState.currentState = 1;
             ButtState.steerSwitch = 1;
             ButtState.previous = ButtState.reading;
@@ -410,12 +413,7 @@ void autosteerLoop()
     ButtState.switchByte |= (ButtState.steerSwitch << 1);   //put steerswitch status in bit 1 position
     ButtState.switchByte |= ButtState.workSwitch;
     
-    if(!ButtState.workSwitch )
-    {
-      //Serial.printf("Work is on%d\r\n", ButtState.workSwitch);
-      
-    }
-
+    
     //get steering position
     #ifdef USE_EXTERN_ADC
       if (steerConfig.SingleInputWAS)   //Single Input ADS

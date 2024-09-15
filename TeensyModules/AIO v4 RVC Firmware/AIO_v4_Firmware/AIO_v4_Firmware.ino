@@ -98,7 +98,7 @@ IPAddress Eth_ipDestination;
 
 byte CK_A = 0;
 byte CK_B = 0;
-int relposnedByteCount = 0;
+
 
 //Speed pulse output
 elapsedMillis speedPulseUpdateTimer = 0;
@@ -142,10 +142,16 @@ float roll = 0;
 float pitch = 0;
 float yaw = 0;
 
+// ********************************************************************************************
+//                           Function prototypes                                             **
+void Read_GPS_FromSerial(void);
+void Process_RTK_FromRadio(void);
+void Process_RTK_FromUDP(void);
+
+
 // Setup procedure ------------------------
 void setup()
-{
-    
+{    
     delay(1000);                       //Small delay so serial can monitor start up
     set_arm_clock(450000000);         //Set CPU speed to 150mhz
     Serial.print("CPU speed set to : ");
@@ -215,8 +221,50 @@ void setup()
 }
 
 void loop()
-{       
-    // Read incoming nmea from GPS
+{
+    Read_GPS_FromSerial();
+    Process_RTK_FromRadio();
+    Process_RTK_FromUDP();
+
+    // If both dual messages are ready, send to AgOpen
+    if (dualReadyGGA == true && dualReadyRelPos == true)
+    {
+        BuildNmea();
+        dualReadyGGA = false;
+        dualReadyRelPos = false;
+    }
+
+    Read_GPS_2_FromSerial();   
+
+    //RVC BNO08x
+    if (rvc.read(&bnoData)) useBNO08xRVC = true;
+
+    if (useBNO08xRVC && bnoTimer > 70 && bnoTrigger)
+    {
+        bnoTrigger = false;
+        imuHandler();   //Get IMU data ready
+    }
+    
+    if (Autosteer_running) autosteerLoop();
+    else ReceiveUdp();
+    
+    //GGA timeout, turn off GPS LED's etc
+    if (GGAReadyTime > 10000) //GGA age over 10sec
+    {
+        digitalWrite(GPSRED_LED, LOW);
+        digitalWrite(GPSGREEN_LED, LOW);
+        useDual = false;
+    }
+
+    EthernetTask();    
+    TaskScheduler();
+}//End Loop
+
+//***************************************************************************
+//                          Private Functions                               *
+//***************************************************************************
+void Read_GPS_FromSerial(void)
+{   // Read incoming nmea from GPS
     if (SerialGPS->available())
     {
         static bool printed = false;
@@ -227,32 +275,11 @@ void loop()
             printed  = true;
         }
     }
+}
 
-    // Check for RTK via Radio
-    if (SerialRTK.available())
-    {
-        SerialGPS->write(SerialRTK.read());
-         Serial.println(" Reading SerialRTK UART\r\n");
-    }
-
-    // Check for RTK via UDP
-    unsigned int packetLength = Eth_udpNtrip.parsePacket();
-
-    if (packetLength > 0)
-    {
-        if (packetLength > serial_buffer_size) packetLength = serial_buffer_size;
-        Eth_udpNtrip.read(Eth_NTRIP_packetBuffer, packetLength);
-        SerialGPS->write(Eth_NTRIP_packetBuffer, packetLength);
-    }
-
-    // If both dual messages are ready, send to AgOpen
-    if (dualReadyGGA == true && dualReadyRelPos == true)
-    {
-        BuildNmea();
-        dualReadyGGA = false;
-        dualReadyRelPos = false;
-    }
-
+void Read_GPS_2_FromSerial(void)
+{ 
+    static int relposnedByteCount = 0;
     // If anything comes in SerialGPS2 RelPos data
     if (SerialGPS2->available())
     {
@@ -275,7 +302,6 @@ void loop()
             relposnedByteCount = 0;
         }
     }
-
     // Check the message when the buffer is full
     if (relposnedByteCount > 71)
     {
@@ -288,27 +314,31 @@ void loop()
         }
         relposnedByteCount = 0;
     }
+}
 
-    //RVC BNO08x
-    if (rvc.read(&bnoData)) useBNO08xRVC = true;
+void Process_RTK_FromUDP(void)
+{   // Check for RTK via UDP
+    unsigned int packetLength = Eth_udpNtrip.parsePacket();
 
-    if (useBNO08xRVC && bnoTimer > 70 && bnoTrigger)
+    if (packetLength > 0)
     {
-        bnoTrigger = false;
-        imuHandler();   //Get IMU data ready
+        if (packetLength > serial_buffer_size) packetLength = serial_buffer_size;
+        Eth_udpNtrip.read(Eth_NTRIP_packetBuffer, packetLength);
+        SerialGPS->write(Eth_NTRIP_packetBuffer, packetLength);
     }
-    
-    if (Autosteer_running) autosteerLoop();
-    else ReceiveUdp();
-    
-    //GGA timeout, turn off GPS LED's etc
-    if (GGAReadyTime > 10000) //GGA age over 10sec
-    {
-        digitalWrite(GPSRED_LED, LOW);
-        digitalWrite(GPSGREEN_LED, LOW);
-        useDual = false;
-    }
+}
 
+ void Process_RTK_FromRadio(void)
+ {  // Check for RTK via Radio
+    if (SerialRTK.available())
+    {
+        SerialGPS->write(SerialRTK.read());
+        Serial.println(" Reading SerialRTK UART\r\n");
+    }
+ }
+
+void EthernetTask(void)
+{
     // ethernet milisecond counter elapsed
     if (EthernetCheck_msCounter > 10000)
     {
@@ -324,9 +354,7 @@ void loop()
             digitalWrite(Ethernet_Active_LED, 0);
         }
     }
-    TaskScheduler();
-
-}//End Loop
+}
 
 void TaskScheduler(void)
 {
@@ -348,7 +376,7 @@ void TaskScheduler(void)
         }
     }
 }
-//**************************************************************************
+
 
 bool calcChecksum()
 {

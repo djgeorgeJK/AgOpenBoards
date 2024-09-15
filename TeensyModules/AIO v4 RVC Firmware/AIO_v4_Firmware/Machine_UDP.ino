@@ -123,6 +123,8 @@ void Machine_Init()
 
     }
 
+    #define MACHINE_LOOP_PERIOD_MS      50
+    /// @brief Call witn 50ms
     void Machine_loop()
     {
        
