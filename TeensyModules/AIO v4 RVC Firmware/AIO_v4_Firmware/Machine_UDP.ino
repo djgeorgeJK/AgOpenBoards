@@ -134,7 +134,7 @@ void Machine_Init()
     {        
         
         //uTurn = udpData[5];
-        uint8_t localGpsSpeed = (float)udpData[6];//actual speed times 10
+        //uint8_t localGpsSpeed = (float)udpData[6];//actual speed times 10
 
         uint8_t hydLift = udpData[7];   // when change, value 1 - start Lower, value 2 - rising
         uint8_t tramline = udpData[8];  //bit 0 is right bit 1 is left

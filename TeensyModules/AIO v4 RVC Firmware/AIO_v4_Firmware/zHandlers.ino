@@ -26,6 +26,8 @@ char imuRoll[6];
 char imuPitch[6];
 char imuYawRate[6];
 
+extern EthernetUDP Eth_udpPAOGI;
+
 // If odd characters showed up.
 void errorHandler()
 {

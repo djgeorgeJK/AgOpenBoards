@@ -1,4 +1,34 @@
-void EthernetStart()
+#include <stdint.h>
+#include "zEthernet.h"
+//#include <IPAddress.h>
+#include <NativeEthernet.h>
+#include <NativeEthernetUdp.h>
+#include "gpio.h"
+
+
+// IP & MAC address of this module of this module
+uint8_t Eth_myip[4] = { 0, 0, 0, 0}; //This is now set via AgIO
+uint8_t mac[] = {0x00, 0x00, 0x56, 0x00, 0x00, 0x78};
+
+IPAddress Eth_ipDestination;
+
+
+unsigned int portMy = 5120;                         // port of this module
+unsigned int AOGNtripPort = 2233;                   // port NTRIP data from AOG comes in
+unsigned int AOGAutoSteerPort = 8888;               // port Autosteer data from AOG comes in
+unsigned int portDestination = 9999;                // Port of AOG that listens
+// An EthernetUDP instance to let us send and receive packets over UDP
+EthernetUDP Eth_udpPAOGI;     //Out port 5544
+EthernetUDP Eth_udpNtrip;     //In port 2233
+EthernetUDP Eth_udpAutoSteer; //In & Out Port 8888
+
+extern bool Autosteer_running;
+extern ConfigIP_t networkAddress; 
+
+
+char Eth_NTRIP_packetBuffer[SERIAL_BUFFER_SIZE];    // buffer for receiving ntrip data
+
+void EthernetStart(void)
 {
   // start the Ethernet connection:
   Serial.println("Initializing ethernet with static IP address");
@@ -66,4 +96,37 @@ void EthernetStart()
     Serial.print("Ethernet AutoSteer UDP listening to & send from port: ");
     Serial.println(AOGAutoSteerPort);
   }
+}
+
+extern HardwareSerialIMXRT* SerialGPS;
+void Process_RTK_FromUDP(void)
+{   // Check for RTK via UDP
+    unsigned int packetLength = Eth_udpNtrip.parsePacket();
+
+    if (packetLength > 0)
+    {
+        if (packetLength > SERIAL_BUFFER_SIZE) packetLength = SERIAL_BUFFER_SIZE;
+        Eth_udpNtrip.read(Eth_NTRIP_packetBuffer, packetLength);
+        SerialGPS->write(Eth_NTRIP_packetBuffer, packetLength);
+    }
+}
+
+extern elapsedMillis EthernetCheck_msCounter;
+void EthernetTask(void)
+{
+    // ethernet milisecond counter elapsed
+    if (EthernetCheck_msCounter > 10000)
+    {
+        if (Ethernet.linkStatus() == LinkON)
+        {
+            EthernetCheck_msCounter = 0;
+            digitalWrite(Power_on_LED, 0);
+            digitalWrite(Ethernet_Active_LED, 1);
+        }
+        else
+        {
+            digitalWrite(Power_on_LED, 1);
+            digitalWrite(Ethernet_Active_LED, 0);
+        }
+    }
 }

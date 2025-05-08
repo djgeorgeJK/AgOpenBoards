@@ -66,8 +66,10 @@ float outputWAS[] = { -50.00, -45.0, -40.0, -35.0, -30.0, -25.0, -20.0, -15.0, -
 #include <IPAddress.h>
 
 // ethernet
-#include <NativeEthernet.h>
-#include <NativeEthernetUdp.h>
+
+extern IPAddress Eth_ipDestination;
+extern byte Eth_myip[]; 
+extern unsigned int portDestination;
 
 //uint8_t Ethernet::buffer[200]; // udp send and receive buffer
 uint8_t autoSteerUdpData[UDP_TX_PACKET_MAX_SIZE];  // Buffer For Receiving UDP Data
@@ -566,7 +568,7 @@ void autosteerLoop()
 
 } // end of main loop
 
-
+extern EthernetUDP Eth_udpAutoSteer;
 // UDP Receive
 void ReceiveUdp()
 {
@@ -829,7 +831,7 @@ void ReceiveUdp()
                     }
                     scanReply[sizeof(scanReply)-1] = CK_A;
 
-                    static uint8_t ipDest[] = { 255,255,255,255 };
+                    static IPAddress ipDest[] = { 255,255,255,255 };
                     uint16_t portDest = 9999; //AOG port that listens
 
                     //off to AOG
@@ -877,4 +879,10 @@ T multiMap(T value, T* _in, T* _out, uint8_t size)
 
     // interpolate in the right segment for the rest
     return (value - _in[pos - 1]) * (_out[pos] - _out[pos - 1]) / (_in[pos] - _in[pos - 1]) + _out[pos - 1];
+}
+
+
+void LocPrint()
+{
+    //serial.print
 }

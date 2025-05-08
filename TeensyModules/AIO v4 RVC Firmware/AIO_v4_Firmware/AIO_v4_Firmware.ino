@@ -38,7 +38,6 @@ HardwareSerialIMXRT* SerialGPS = &Serial1;   //Main postion receiver (GGA)
 HardwareSerialIMXRT* SerialGPS2 = &Serial7;  //Dual heading receiver 
 HardwareSerialIMXRT* SerialIMU = &Serial5;   //IMU BNO-085
 
-constexpr int serial_buffer_size = 512;
 
 const int32_t baudGPS = 460800;
 const int32_t baudRTK = 115200;     // most are using Xbee radios with default of 115200
@@ -46,21 +45,15 @@ const int32_t baudRTK = 115200;     // most are using Xbee radios with default o
 #define ImuWire Wire        //SCL=19:A5 SDA=18:A4
 #define RAD_TO_DEG_X_10 572.95779513082320876798154814105
 
-//Status LED's
-#define GGAReceivedLED          13      //Teensy onboard LED
-#define Power_on_LED            5       //Red
-#define Ethernet_Active_LED     6       //Green
-#define GPSRED_LED              9       //Red (Flashing = NO IMU or Dual, ON = GPS fix with IMU)
-#define GPSGREEN_LED            10      //Green (Flashing = Dual bad, ON = Dual good)
-#define AUTOSTEER_STANDBY_LED   11      //Red
-#define AUTOSTEER_ACTIVE_LED    12      //Green
-#define AN_POT_MY               A10     //24
+
 
 /*****************************************************************/
 
 #include "zNMEAParser.h"
 #include <Wire.h>
 #include "BNO_RVC.h"
+#include "zEthernet.h"
+#include "gpio.h"
 #include <NativeEthernet.h>
 #include <NativeEthernetUdp.h>
 
@@ -72,29 +65,8 @@ bool bnoTrigger = false;
 bool useBNO08xRVC = false;
 bool useMachine = true;
 
-struct ConfigIP
-{
-    uint8_t ipOne = 192;
-    uint8_t ipTwo = 168;
-    uint8_t ipThree = 5;
-};  ConfigIP networkAddress;   //3 bytes
+ConfigIP_t networkAddress;   //3 bytes
 
-// IP & MAC address of this module of this module
-byte Eth_myip[4] = { 0, 0, 0, 0}; //This is now set via AgIO
-byte mac[] = {0x00, 0x00, 0x56, 0x00, 0x00, 0x78};
-
-unsigned int portMy = 5120;                         // port of this module
-unsigned int AOGNtripPort = 2233;                   // port NTRIP data from AOG comes in
-unsigned int AOGAutoSteerPort = 8888;               // port Autosteer data from AOG comes in
-unsigned int portDestination = 9999;                // Port of AOG that listens
-char Eth_NTRIP_packetBuffer[serial_buffer_size];    // buffer for receiving ntrip data
-
-// An EthernetUDP instance to let us send and receive packets over UDP
-EthernetUDP Eth_udpPAOGI;     //Out port 5544
-EthernetUDP Eth_udpNtrip;     //In port 2233
-EthernetUDP Eth_udpAutoSteer; //In & Out Port 8888
-
-IPAddress Eth_ipDestination;
 
 byte CK_A = 0;
 byte CK_B = 0;
@@ -124,11 +96,11 @@ double heading = 0;
 
 byte ackPacket[72] = {0xB5, 0x62, 0x01, 0x3C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-uint8_t GPSrxbuffer[serial_buffer_size];    //Extra serial rx buffer
-uint8_t GPStxbuffer[serial_buffer_size];    //Extra serial tx buffer
-uint8_t GPS2rxbuffer[serial_buffer_size];   //Extra serial rx buffer
-uint8_t GPS2txbuffer[serial_buffer_size];   //Extra serial tx buffer
-uint8_t RTKrxbuffer[serial_buffer_size];    //Extra serial rx buffer
+uint8_t GPSrxbuffer[SERIAL_BUFFER_SIZE];    //Extra serial rx buffer
+uint8_t GPStxbuffer[SERIAL_BUFFER_SIZE];    //Extra serial tx buffer
+uint8_t GPS2rxbuffer[SERIAL_BUFFER_SIZE];   //Extra serial rx buffer
+uint8_t GPS2txbuffer[SERIAL_BUFFER_SIZE];   //Extra serial tx buffer
+uint8_t RTKrxbuffer[SERIAL_BUFFER_SIZE];    //Extra serial rx buffer
 
 /* A parser is declared with 3 handlers at most */
 NMEAParser<2> parser;
@@ -154,6 +126,7 @@ void setup()
 {    
     delay(1000);                       //Small delay so serial can monitor start up
     set_arm_clock(450000000);         //Set CPU speed to 150mhz
+    Serial.begin(115200);
     Serial.print("CPU speed set to : ");
     Serial.println(F_CPU_ACTUAL);
 
@@ -174,17 +147,17 @@ void setup()
     Serial.println("Start setup");
 
     SerialGPS->begin(baudGPS);
-    SerialGPS->addMemoryForRead(GPSrxbuffer, serial_buffer_size);
-    SerialGPS->addMemoryForWrite(GPStxbuffer, serial_buffer_size);
+    SerialGPS->addMemoryForRead(GPSrxbuffer, SERIAL_BUFFER_SIZE);
+    SerialGPS->addMemoryForWrite(GPStxbuffer, SERIAL_BUFFER_SIZE);
 
     delay(10);
     SerialRTK.begin(baudRTK);
-    SerialRTK.addMemoryForRead(RTKrxbuffer, serial_buffer_size);
+    SerialRTK.addMemoryForRead(RTKrxbuffer, SERIAL_BUFFER_SIZE);
 
     delay(10);
     SerialGPS2->begin(baudGPS);
-    SerialGPS2->addMemoryForRead(GPS2rxbuffer, serial_buffer_size);
-    SerialGPS2->addMemoryForWrite(GPS2txbuffer, serial_buffer_size);
+    SerialGPS2->addMemoryForRead(GPS2rxbuffer, SERIAL_BUFFER_SIZE);
+    SerialGPS2->addMemoryForWrite(GPS2txbuffer, SERIAL_BUFFER_SIZE);
 
     Serial.println("SerialAOG, SerialRTK, SerialGPS and SerialGPS2 initialized");
 
@@ -316,17 +289,8 @@ void Read_GPS_2_FromSerial(void)
     }
 }
 
-void Process_RTK_FromUDP(void)
-{   // Check for RTK via UDP
-    unsigned int packetLength = Eth_udpNtrip.parsePacket();
 
-    if (packetLength > 0)
-    {
-        if (packetLength > serial_buffer_size) packetLength = serial_buffer_size;
-        Eth_udpNtrip.read(Eth_NTRIP_packetBuffer, packetLength);
-        SerialGPS->write(Eth_NTRIP_packetBuffer, packetLength);
-    }
-}
+
 
  void Process_RTK_FromRadio(void)
  {  // Check for RTK via Radio
@@ -337,24 +301,7 @@ void Process_RTK_FromUDP(void)
     }
  }
 
-void EthernetTask(void)
-{
-    // ethernet milisecond counter elapsed
-    if (EthernetCheck_msCounter > 10000)
-    {
-        if (Ethernet.linkStatus() == LinkON)
-        {
-            EthernetCheck_msCounter = 0;
-            digitalWrite(Power_on_LED, 0);
-            digitalWrite(Ethernet_Active_LED, 1);
-        }
-        else
-        {
-            digitalWrite(Power_on_LED, 1);
-            digitalWrite(Ethernet_Active_LED, 0);
-        }
-    }
-}
+
 
 void TaskScheduler(void)
 {
