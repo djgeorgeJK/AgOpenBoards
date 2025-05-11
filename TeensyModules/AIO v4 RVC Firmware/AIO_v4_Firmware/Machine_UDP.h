@@ -23,7 +23,10 @@
  * DEFINITIONS, ENUMS, STRUCTURES AND TYPEDEFS
  ********************************************************************************/
 
+ #define MACHINE_LOOP_PERIOD_MS      100
+
 void Machine_Init(void);
+void Machine_loop(void);
 void Machine_ProcessData(uint8_t * udpdata);
 void Machine_ProcessConfig(uint8_t * udpdata);
 void Machine_ProcessRelayConfig(uint8_t * udpData);

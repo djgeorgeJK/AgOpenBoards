@@ -24,8 +24,7 @@ float outputWAS[] = { -50.00, -45.0, -40.0, -35.0, -30.0, -25.0, -20.0, -15.0, -
 
 /////////////////////////////////////////////
 
-// if not in eeprom, overwrite
-#define EEP_Ident 2400
+
 
 //   ***********  Motor drive connections  **************888
 //Connect ground only for cytron, Connect Ground and +5v for IBT2
@@ -38,6 +37,11 @@ float outputWAS[] = { -50.00, -45.0, -40.0, -35.0, -30.0, -25.0, -20.0, -15.0, -
 
 //Not Connected for Cytron, Right PWM for IBT2
 #define PWM2_RPWM  4
+
+
+
+
+
 
 //--------------------------- Switch Input Pins ------------------------
 #define STEERSW_PIN     32
@@ -57,6 +61,7 @@ float outputWAS[] = { -50.00, -45.0, -40.0, -35.0, -30.0, -25.0, -20.0, -15.0, -
 #include <EEPROM.h>
 #include "zADS1115.h"
 #include "Machine_UDP.h"
+#include "global.h"
 
 
 #ifdef USE_EXTERN_ADC
@@ -107,7 +112,6 @@ elapsedMillis gpsSpeedUpdateTimer = 0;
 int16_t EEread = 0;
 
 //Relays
-bool isRelayActiveHigh = true;
 uint8_t relay = 0, relayHi = 0, uTurn = 0;
 uint8_t tram = 0;
 
@@ -174,7 +178,7 @@ struct Setup {
   uint8_t PulseCountMax = 5;
   uint8_t IsDanfoss = 0;
   uint8_t IsUseY_Axis = 0;     //Set to 0 to use X Axis, 1 to use Y avis
-}; Setup steerConfig;               // 9 bytes
+}; Setup steerConfig;               // 13 bytes
 
 void steerConfigInit()
 {
@@ -247,20 +251,20 @@ void autosteerSetup()
     //50Khz I2C
     //TWBR = 144;   //Is this needed?
 
-    EEPROM.get(0, EEread);              // read identifier
+    EEPROM.get(EE_ADDR_READY, EEread);              // read identifier
 
     if (EEread != EEP_Ident)            // check on first start and write EEPROM
     {
       EEPROM.put(0, EEP_Ident);
-      EEPROM.put(10, steerSettings);
-      EEPROM.put(40, steerConfig);
-      EEPROM.put(60, networkAddress);    
+      EEPROM.put(EE_ADDR_STEERSET, steerSettings);
+      EEPROM.put(EE_ADDR_STEECFG, steerConfig);
+      EEPROM.put(EE_ADDR_NETWORK, networkAddress);    
     }
     else
     {
-      EEPROM.get(10, steerSettings);     // read the Settings
-      EEPROM.get(40, steerConfig);
-      EEPROM.get(60, networkAddress); 
+      EEPROM.get(EE_ADDR_STEERSET, steerSettings);     // read the Settings
+      EEPROM.get(EE_ADDR_STEECFG, steerConfig);
+      EEPROM.get(EE_ADDR_NETWORK, networkAddress); 
     }
 
     steerSettingsInit();
@@ -717,7 +721,7 @@ void ReceiveUdp()
                 //autoSteerUdpData[13];
 
                 //store in EEPROM
-                EEPROM.put(10, steerSettings);
+                EEPROM.put(EE_ADDR_STEERSET, steerSettings);
 
                 // Re-Init steer settings
                 steerSettingsInit();
@@ -727,6 +731,7 @@ void ReceiveUdp()
             {
                 uint8_t sett = autoSteerUdpData[5]; //setting0
 
+                Serial.printf("Ster config received\r\n");
                 if (bitRead(sett, 0)) steerConfig.InvertWAS = 1; else steerConfig.InvertWAS = 0;
                 if (bitRead(sett, 1)) steerConfig.IsRelayActiveHigh = 1; else steerConfig.IsRelayActiveHigh = 0;
                 if (bitRead(sett, 2)) steerConfig.MotorDriveDirection = 1; else steerConfig.MotorDriveDirection = 0;
@@ -751,7 +756,7 @@ void ReceiveUdp()
                 //crc
                 //autoSteerUdpData[13];
 
-                EEPROM.put(40, steerConfig);
+                EEPROM.put(EE_ADDR_STEECFG, steerConfig);
 
                 // Re-Init
                 steerConfigInit();
@@ -793,7 +798,7 @@ void ReceiveUdp()
               networkAddress.ipThree = autoSteerUdpData[9];
         
               //save in EEPROM and restart
-              EEPROM.put(60, networkAddress);
+              EEPROM.put(EE_ADDR_NETWORK, networkAddress);
               SCB_AIRCR = 0x05FA0004; //Teensy Reset
               }
             }//end 201

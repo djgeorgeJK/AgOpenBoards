@@ -9,3 +9,10 @@
 #define AUTOSTEER_STANDBY_LED   11      //Red
 #define AUTOSTEER_ACTIVE_LED    12      //Green
 #define AN_POT_MY               A10     //24
+
+
+// sections for spreader
+#define GP_RE1                  33
+#define GP_RE2                  36
+#define GP_RE3                  37
+#define GP_RE4                  14
