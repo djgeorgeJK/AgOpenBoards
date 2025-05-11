@@ -23,7 +23,13 @@
  * DEFINITIONS, ENUMS, STRUCTURES AND TYPEDEFS
  ********************************************************************************/
 
- #define MACHINE_LOOP_PERIOD_MS      100
+ #define MACHINE_LOOP_PERIOD_MS      100u
+
+/*  USER NUMBER 1  aogConfig.user1 */
+#define UN1_WS_DIS_SEC        0x01u                  // when 1 turning off Work switch, will not off sections
+
+
+
 
 void Machine_Init(void);
 void Machine_loop(void);

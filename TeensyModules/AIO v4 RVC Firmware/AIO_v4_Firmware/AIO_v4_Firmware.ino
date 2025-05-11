@@ -53,7 +53,9 @@ const int32_t baudRTK = 115200;     // most are using Xbee radios with default o
 #include <Wire.h>
 #include "BNO_RVC.h"
 #include "zEthernet.h"
+#include "Machine_UDP.h"
 #include "gpio.h"
+#include "global.h"
 #include <NativeEthernet.h>
 #include <NativeEthernetUdp.h>
 
@@ -74,7 +76,7 @@ byte CK_B = 0;
 
 //Speed pulse output
 elapsedMillis speedPulseUpdateTimer = 0;
-byte velocityPWM_Pin = 36;      // Velocity (MPH speed) PWM pin
+
 
 //Used to set CPU speed
 extern "C" uint32_t set_arm_clock(uint32_t frequency); // required prototype
@@ -129,6 +131,8 @@ void setup()
     Serial.begin(115200);
     Serial.print("CPU speed set to : ");
     Serial.println(F_CPU_ACTUAL);
+
+    Serial.printf("Firmware version %d.%d.%d Debug \r\n ", FW_MAJ, FW_MIN, FW_PATCH);
 
     pinMode(GGAReceivedLED,         OUTPUT);
     pinMode(Power_on_LED,           OUTPUT);
@@ -190,6 +194,8 @@ void setup()
 
   int val = analogRead(A17);
   Serial.printf("analog A17 is: %d\r\n", val);
+
+  Machine_Init();
   
 }
 
@@ -309,7 +315,7 @@ void TaskScheduler(void)
     
     if (scheduler_last_cntr != systick_millis_count)
     {
-        if ((systick_millis_count % 1000) == 0)
+        if ((systick_millis_count % 1000) == 0)     // each second
         {
             //int val = analogRead(AN_POT_MY);
             //Serial.printf("analog A10 is: %d\r\n", val);
@@ -320,6 +326,11 @@ void TaskScheduler(void)
         if ((systick_millis_count % 2) == 0)    // each 2 ms
         {
             //Buttons_Sample();
+        }
+
+        if ((systick_millis_count % MACHINE_LOOP_PERIOD_MS) == 0)    // each 50 ms
+        {
+            Machine_loop();
         }
     }
 }

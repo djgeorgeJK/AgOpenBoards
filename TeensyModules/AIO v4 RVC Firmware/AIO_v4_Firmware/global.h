@@ -1,4 +1,11 @@
 
+
+#define FW_MAJ          0
+#define FW_MIN          1
+#define FW_PATCH        3
+
+
+
 /* EEPROM map */
 #define EE_ADDR_READY        0     // EEread   2B
 #define EE_ADDR_AOGCFG       6     // Machine module aogConfig
@@ -14,5 +21,3 @@
 
 
 
-/*  USER NUMBER 1  aogConfig.user1 */
-#define UN1_WS_DIS_SEC        0x01                  // when 1 turning off Work switch, will not off sections

@@ -39,22 +39,6 @@ float outputWAS[] = { -50.00, -45.0, -40.0, -35.0, -30.0, -25.0, -20.0, -15.0, -
 #define PWM2_RPWM  4
 
 
-
-
-
-
-//--------------------------- Switch Input Pins ------------------------
-#define STEERSW_PIN     32
-#define WORKSW_PIN      31    
-#define REMOTE_PIN      30
-#define DEBUG_PIN       33
-
-#define SEC1_PIN      35
-
-//Define sensor pin for current or pressure sensor
-#define CURRENT_SENSOR_PIN    A17
-#define PRESSURE_SENSOR_PIN   A11
-
 #define CONST_180_DIVIDED_BY_PI 57.2957795130823
 
 #include <Wire.h>
@@ -62,6 +46,7 @@ float outputWAS[] = { -50.00, -45.0, -40.0, -35.0, -30.0, -25.0, -20.0, -15.0, -
 #include "zADS1115.h"
 #include "Machine_UDP.h"
 #include "global.h"
+#include "Buttons.h"
 
 
 #ifdef USE_EXTERN_ADC
@@ -116,16 +101,7 @@ uint8_t relay = 0, relayHi = 0, uTurn = 0;
 uint8_t tram = 0;
 
 //Switches
-struct Switches
-{
-  uint8_t remoteSwitch = 0;
-  uint8_t workSwitch = 0;
-  uint8_t steerSwitch = 1;
-  uint8_t switchByte = 0;
-  uint8_t currentState = 1;
-  uint8_t reading;
-  uint8_t previous = 0;
-}; Switches ButtState;
+Switches_t ButtState;
 
 //On Off
 uint8_t guidanceStatus = 0;
@@ -224,9 +200,8 @@ void autosteerSetup()
     pinMode(REMOTE_PIN, INPUT_PULLUP);
     pinMode(DIR1_RL_ENABLE, OUTPUT);
     
-    pinMode(DEBUG_PIN, OUTPUT);
-    pinMode(SEC1_PIN, INPUT_PULLUP);
-
+    
+    
     // Disable digital inputs for analog input pins
     pinMode(CURRENT_SENSOR_PIN, INPUT_DISABLE);
     pinMode(PRESSURE_SENSOR_PIN, INPUT_DISABLE);
@@ -548,16 +523,16 @@ void autosteerLoop()
           //Serial.print(gpsSpeed); Serial.print(" -> "); Serial.println(speedPulse);
 
           if (gpsSpeed > 0.11) { // 0.10 wasn't high enough
-              tone(velocityPWM_Pin, uint16_t(speedPulse));
+              tone(GP_VELOCITY_PIN, uint16_t(speedPulse));
           }
           else {
-              noTone(velocityPWM_Pin);
+              noTone(GP_VELOCITY_PIN);
           }
       }
   }
   else  // if gpsSpeedUpdateTimer hasn't update for 1000 ms, turn off speed pulse
   {
-      noTone(velocityPWM_Pin);
+      noTone(GP_VELOCITY_PIN);
   }
 
   if (encEnable)

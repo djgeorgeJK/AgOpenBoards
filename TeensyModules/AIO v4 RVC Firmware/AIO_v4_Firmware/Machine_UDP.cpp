@@ -8,11 +8,14 @@
 /********************************************************************************
  * INCLUDE DIRECTIVES
  ********************************************************************************/
+#include <stdint.h>
+#include "Machine_UDP.h"
 #include <EEPROM.h> 
 #include <Wire.h>
 #include "Arduino.h"
 #include "global.h"
 #include "gpio.h"
+#include "Buttons.h"
 
 /********************************************************************************
  * DEFINITIONS, ENUMS, STRUCTURES AND TYPEDEFS
@@ -184,7 +187,7 @@ void Machine_ProcessConfig(uint8_t * udpData)   // PGN - 238 - EE - goes when Ma
 
     //save in EEPROM and restart
     EEPROM.put(EE_ADDR_AOGCFG, aogConfig);
-    Serial.printf("Process AOG config \r\n");
+    Serial.printf("Process AOG config, U1:%d; U2:%d; U3:%d; U4:%d \r\n", aogConfig.user1,aogConfig.user2,aogConfig.user3,aogConfig.user4 );
 }
 
 void Machine_ProcessRelayConfig(uint8_t * udpData)  // 236 machine Relay Pin Settings 
@@ -202,7 +205,7 @@ void Machine_ProcessRelayConfig(uint8_t * udpData)  // 236 machine Relay Pin Set
     EEPROM.put(EE_ADDR_SECTI_HEAD, EEP_Ident);    
 }
     
-    
+extern Switches_t ButtState;    
 /* HW write of relays*/
 void Machine_ProcessRelays(void)
 {     
@@ -221,14 +224,20 @@ void Machine_ProcessRelays(void)
         printChange = true;
     }
 
+
     for (uint8_t pin = 0; pin < sizeof(hwPinAsignment); pin++)      // max honota muze by i 24, ale nema smysl, ze mam jen 4 piny
-    {   
-        
+    {
         uint8_t value = SectionState & (1 << (PinToSection[pin] - 1));
-        if((PinToSection[pin] > 0) && (PinToSection[pin] <= 16 ))        // 16 sections, 0 not used
+        if( PinToSection[pin] <= 16 )       // 16 sections, 0 not used
         {
-            digitalWrite(hwPinAsignment[pin], value );
-            if (printChange) Serial.printf("Zapisu na pin %d, hodnotu %d \r\n", hwPinAsignment[pin], value ? 0 : 1);
+            if ((aogConfig.user1 & UN1_WS_DIS_SEC) && (ButtState.workSwitch == 1))   // when is this feature allowed
+            { // not change section pins            
+            }
+            else
+            {   
+                digitalWrite(hwPinAsignment[pin], value );
+                if (printChange) Serial.printf("Zapisu na pin %d, hodnotu %d \r\n", hwPinAsignment[pin], value ? 0 : 1);
+            }
         }else 
         {
             Serial.printf("Spatna sekce %d\r\n", PinToSection[pin]);
@@ -236,6 +245,7 @@ void Machine_ProcessRelays(void)
     }
 
     
+
     //digitalWrite(9, TramLineL);
     //digitalWrite(10, TramLineR);
     
