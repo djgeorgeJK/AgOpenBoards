@@ -42,7 +42,7 @@ struct Config {
     uint8_t user3 = 0;
     uint8_t user4 = 0;
 
-};  Config aogConfig;   //4 bytes
+};  Config aogConfig;   //8 bytes
 
 
 /* Status of hydraulic,tramlines and Sections  */
@@ -96,6 +96,7 @@ void Machine_Init(void)
     {
         EEPROM.get(EE_ADDR_SECTI, PinToSection);   
         EEPROM.get(EE_ADDR_AOGCFG, aogConfig);
+        Serial.printf(" Machine EEPROM OK \r\n");
     }
 }    
 
@@ -201,8 +202,8 @@ void Machine_ProcessRelayConfig(uint8_t * udpData)  // 236 machine Relay Pin Set
     }
 
     //save in EEPROM and restart
-    EEPROM.put(EE_ADDR_SECTI, PinToSection);
     EEPROM.put(EE_ADDR_SECTI_HEAD, EEP_Ident);    
+    EEPROM.put(EE_ADDR_SECTI, PinToSection);
 }
     
 extern Switches_t ButtState;    

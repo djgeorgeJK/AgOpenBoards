@@ -240,6 +240,7 @@ void autosteerSetup()
       EEPROM.get(EE_ADDR_STEERSET, steerSettings);     // read the Settings
       EEPROM.get(EE_ADDR_STEECFG, steerConfig);
       EEPROM.get(EE_ADDR_NETWORK, networkAddress); 
+      Serial.printf(" Autosetup EEPROM OK \r\n");
     }
 
     steerSettingsInit();
