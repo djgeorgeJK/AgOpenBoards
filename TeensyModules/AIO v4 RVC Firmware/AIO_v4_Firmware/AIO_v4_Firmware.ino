@@ -58,6 +58,7 @@ const int32_t baudRTK = 115200;     // most are using Xbee radios with default o
 #include "global.h"
 #include <NativeEthernet.h>
 #include <NativeEthernetUdp.h>
+#include "CAN_bus.h"
 
 //Roomba Vac mode for BNO085 and data
 BNO_rvc rvc = BNO_rvc();
@@ -196,6 +197,7 @@ void setup()
   Serial.printf("analog A17 is: %d\r\n", val);
 
   Machine_Init();
+  CanBus_Init();
   
 }
 
@@ -237,6 +239,7 @@ void loop()
 
     EthernetTask();    
     TaskScheduler();
+    CanBus_Task();
 }//End Loop
 
 //***************************************************************************

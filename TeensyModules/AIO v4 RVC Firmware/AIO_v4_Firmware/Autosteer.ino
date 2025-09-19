@@ -230,10 +230,11 @@ void autosteerSetup()
 
     if (EEread != EEP_Ident)            // check on first start and write EEPROM
     {
-      EEPROM.put(0, EEP_Ident);
+      EEPROM.put(EE_ADDR_READY, EEP_Ident);
       EEPROM.put(EE_ADDR_STEERSET, steerSettings);
       EEPROM.put(EE_ADDR_STEECFG, steerConfig);
-      EEPROM.put(EE_ADDR_NETWORK, networkAddress);    
+      EEPROM.put(EE_ADDR_NETWORK, networkAddress);   
+      //Serial.printf(" Autosetup EEPROM rewritten \r\n"); 
     }
     else
     {
@@ -697,6 +698,7 @@ void ReceiveUdp()
                 //autoSteerUdpData[13];
 
                 //store in EEPROM
+                EEPROM.put(EE_ADDR_READY, EEP_Ident);
                 EEPROM.put(EE_ADDR_STEERSET, steerSettings);
 
                 // Re-Init steer settings

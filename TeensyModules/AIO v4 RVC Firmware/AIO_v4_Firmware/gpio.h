@@ -28,3 +28,9 @@
 //Define sensor pin for current or pressure sensor
 #define CURRENT_SENSOR_PIN    A17
 #define PRESSURE_SENSOR_PIN   A11
+
+/* SPI for CAN BUS */
+#define CAN_MOSI_PIN    11
+#define CAN_MISO_PIN    12
+#define CAN_SCK_PIN     13
+#define CAN_CS_PIN      10
