@@ -28,7 +28,11 @@ MCP2515::MCP2515(const uint8_t _CS, const uint32_t _SPI_CLOCK, SPIClass * _SPI)
     digitalWrite(SPICS, HIGH);
 }
 
-void MCP2515::startSPI() {
+void MCP2515::startSPI() {    
+    digitalWrite(SPICS, LOW);
+}
+
+void MCP2515::initSPI() {
     SPIn->beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE0));
     digitalWrite(SPICS, LOW);
 }
@@ -40,7 +44,7 @@ void MCP2515::endSPI() {
 
 MCP2515::ERROR MCP2515::reset(void)
 {
-    startSPI();
+    initSPI();
     SPIn->transfer(INSTRUCTION_RESET);
     endSPI();
 
@@ -286,7 +290,8 @@ MCP2515::ERROR MCP2515::setBitrate(const CAN_SPEED canSpeed, CAN_CLOCK canClock)
             case (CAN_250KBPS):                                             // 250Kbps
             cfg1 = MCP_8MHz_250kBPS_CFG1;
             cfg2 = MCP_8MHz_250kBPS_CFG2;
-            cfg3 = MCP_8MHz_250kBPS_CFG3;
+            cfg3 = MCP_8MHz_250kBPS_CFG3;         
+            Serial.printf("CAN baud configured for 250k/8MHz");   
             break;
 
             case (CAN_500KBPS):                                             // 500Kbps
@@ -490,6 +495,7 @@ MCP2515::ERROR MCP2515::setBitrate(const CAN_SPEED canSpeed, CAN_CLOCK canClock)
         setRegister(MCP_CNF1, cfg1);
         setRegister(MCP_CNF2, cfg2);
         setRegister(MCP_CNF3, cfg3);
+        Serial.printf("CAN baud set to 0x%X:0x%X:0x%X\r\n", cfg1, cfg2, cfg3 );
         return ERROR_OK;
     }
     else {
@@ -680,6 +686,8 @@ MCP2515::ERROR MCP2515::readMessage(struct can_frame *frame)
 {
     ERROR rc;
     uint8_t stat = getStatus();
+    if(stat != 0)
+        Serial.printf("Status je: %X\r\n", stat);
 
     if ( stat & STAT_RX0IF ) {
         rc = readMessage(RXB0, frame);

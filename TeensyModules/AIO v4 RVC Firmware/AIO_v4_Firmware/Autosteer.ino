@@ -234,7 +234,7 @@ void autosteerSetup()
       EEPROM.put(EE_ADDR_STEERSET, steerSettings);
       EEPROM.put(EE_ADDR_STEECFG, steerConfig);
       EEPROM.put(EE_ADDR_NETWORK, networkAddress);   
-      //Serial.printf(" Autosetup EEPROM rewritten \r\n"); 
+      Serial.printf(" Autosetup EEPROM rewritten \r\n"); 
     }
     else
     {
@@ -550,6 +550,7 @@ void autosteerLoop()
 } // end of main loop
 
 extern EthernetUDP Eth_udpAutoSteer;
+extern bool useBNO08xRVC;
 // UDP Receive
 void ReceiveUdp()
 {
@@ -818,7 +819,7 @@ void ReceiveUdp()
                     uint16_t portDest = 9999; //AOG port that listens
 
                     //off to AOG
-                    SendUdp(scanReply, sizeof(scanReply), ipDest, portDest);
+                    SendUdp(scanReply, sizeof(scanReply), &ipDest, portDest);
                 }
             }
         } //end if 80 81 7F
@@ -865,7 +866,3 @@ T multiMap(T value, T* _in, T* _out, uint8_t size)
 }
 
 
-void LocPrint()
-{
-    //serial.print
-}

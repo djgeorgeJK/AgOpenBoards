@@ -38,7 +38,7 @@ HardwareSerialIMXRT* SerialGPS = &Serial1;   //Main postion receiver (GGA)
 HardwareSerialIMXRT* SerialGPS2 = &Serial7;  //Dual heading receiver 
 HardwareSerialIMXRT* SerialIMU = &Serial5;   //IMU BNO-085
 
-
+// Baud rates
 const int32_t baudGPS = 460800;
 const int32_t baudRTK = 115200;     // most are using Xbee radios with default of 115200
 
@@ -130,16 +130,14 @@ void setup()
     delay(1000);                       //Small delay so serial can monitor start up
     set_arm_clock(450000000);         //Set CPU speed to 150mhz
     Serial.begin(115200);
-    Serial.print("CPU speed set to : ");
-    Serial.println(F_CPU_ACTUAL);
+    Serial.printf("CPU speed set to: %d", F_CPU_ACTUAL);
+    Serial.printf("Firmware version %d.%d.%d Debug \r\n", FW_MAJ, FW_MIN, FW_PATCH);
 
-    Serial.printf("Firmware version %d.%d.%d Debug \r\n ", FW_MAJ, FW_MIN, FW_PATCH);
-
-    pinMode(GGAReceivedLED,         OUTPUT);
+    //pinMode(GGAReceivedLED,         OUTPUT);
     pinMode(Power_on_LED,           OUTPUT);
     pinMode(Ethernet_Active_LED,    OUTPUT);
     pinMode(GPSRED_LED,             OUTPUT);
-    pinMode(GPSGREEN_LED,           OUTPUT);
+    //pinMode(GPSGREEN_LED,           OUTPUT);
     pinMode(AUTOSTEER_STANDBY_LED,  OUTPUT);
     pinMode(AUTOSTEER_ACTIVE_LED,   OUTPUT);
     
@@ -170,7 +168,9 @@ void setup()
     autosteerSetup();
   
     Serial.println("\r\nStarting Ethernet...");
+    CanBus_Init();
     EthernetStart();
+
 
     SerialIMU->begin(115200);
     rvc.begin(SerialIMU);
@@ -192,12 +192,12 @@ void setup()
 
   Serial.println("\r\nEnd setup, waiting for GPS...\r\n");
   Autosteer_running = true;
-
+  
   int val = analogRead(A17);
   Serial.printf("analog A17 is: %d\r\n", val);
 
   Machine_Init();
-  CanBus_Init();
+  
   
 }
 
@@ -232,14 +232,14 @@ void loop()
     //GGA timeout, turn off GPS LED's etc
     if (GGAReadyTime > 10000) //GGA age over 10sec
     {
-        digitalWrite(GPSRED_LED, LOW);
-        digitalWrite(GPSGREEN_LED, LOW);
+        //digitalWrite(GPSRED_LED, LOW);
+        //digitalWrite(GPSGREEN_LED, LOW);
         useDual = false;
     }
 
     EthernetTask();    
     TaskScheduler();
-    CanBus_Task();
+    
 }//End Loop
 
 //***************************************************************************
@@ -323,6 +323,7 @@ void TaskScheduler(void)
             //int val = analogRead(AN_POT_MY);
             //Serial.printf("analog A10 is: %d\r\n", val);
             //Serial.printf("1 sec print\r\n");
+            
         }
         scheduler_last_cntr = systick_millis_count;
 
@@ -334,6 +335,7 @@ void TaskScheduler(void)
         if ((systick_millis_count % MACHINE_LOOP_PERIOD_MS) == 0)    // each 50 ms
         {
             Machine_loop();
+            CanBus_Task();
         }
     }
 }

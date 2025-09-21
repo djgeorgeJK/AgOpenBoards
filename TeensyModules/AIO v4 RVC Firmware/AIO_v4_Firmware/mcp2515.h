@@ -15,9 +15,9 @@
 #define MCP_8MHz_500kBPS_CFG2 (0x90)
 #define MCP_8MHz_500kBPS_CFG3 (0x82)
 
-#define MCP_8MHz_250kBPS_CFG1 (0x00)
-#define MCP_8MHz_250kBPS_CFG2 (0xB1)
-#define MCP_8MHz_250kBPS_CFG3 (0x85)
+#define MCP_8MHz_250kBPS_CFG1 (0x41)    // 00
+#define MCP_8MHz_250kBPS_CFG2 (0xF1)    // b1
+#define MCP_8MHz_250kBPS_CFG3 (0x85)    // 85
 
 #define MCP_8MHz_200kBPS_CFG1 (0x00)
 #define MCP_8MHz_200kBPS_CFG2 (0xB4)
@@ -453,6 +453,7 @@ class MCP2515
     private:
 
         void startSPI();
+        void initSPI();
         void endSPI();
 
         ERROR setMode(const CANCTRL_REQOP_MODE mode);

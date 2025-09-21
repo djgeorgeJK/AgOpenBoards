@@ -5,13 +5,13 @@
 /********************************************************************************
  * INCLUDE DIRECTIVES
  ********************************************************************************/
+#include <Arduino.h>
 #include <stdint.h>
 
-#include "Arduino.h"
 #include "global.h"
 #include "mcp2515.h"
 #include "gpio.h"
-
+#include "log.h"
 /********************************************************************************
  * DEFINITIONS, ENUMS, STRUCTURES AND TYPEDEFS
  ********************************************************************************/     
@@ -28,18 +28,11 @@
 /********************************************************************************
  * VARIABLE DECLARATIONS
  ********************************************************************************/
-
- #include <FlexCAN_T4.h>
-//FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_256> K_Bus;    //Tractor / Control Bus
-//FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_256> ISO_Bus;  //ISO Bus for kverneland
-
-
+MCP2515 mcp2515(CAN_CS_PIN, 50000); // CS, SPI speed, MOSI, MISO, SCK
 can_frame_t canMsg1;
 can_frame_t canMsg2;
 can_frame_t canMsgRx;
 
-
-MCP2515 mcp2515(CAN_CS_PIN, 400000); // CS, SPI speed, MOSI, MISO, SCK
 /********************************************************************************
  * PRIVATE FUNCTION PROTOTYPES
  ********************************************************************************/
@@ -50,33 +43,53 @@ MCP2515 mcp2515(CAN_CS_PIN, 400000); // CS, SPI speed, MOSI, MISO, SCK
 
 void CanBus_Init(void)
 {
-    // ISO_Bus.begin();
-    // ISO_Bus.setBaudRate(250000);
-    // ISO_Bus.enableFIFO();
-    // ISO_Bus.setFIFOFilter(REJECT_ALL);
+    Serial.println("CAN Start Init");
+    
+    pinMode(CAN_MISO_PIN, INPUT);
 
-
+    //SPI.setClockDivider(SPI_CLOCK_DIV32);
+    //SPI.begin();
     mcp2515.reset();
-    mcp2515.setBitrate(CAN_125KBPS);
-    //mcp2515.setNormalMode();
-    mcp2515.setListenOnlyMode();
+    
+    mcp2515.setBitrate(CAN_250KBPS, MCP_8MHZ);
+    
+    //mcp2515.setBitrate(CAN_500KBPS, MCP_16MHZ);
+    MCP2515::ERROR err = mcp2515.setNormalMode();
+
+    //mcp2515.setListenOnlyMode();
+    Serial.printf("CAN Bus Initialized,err: %d \r\n", err);
+
+    canMsg1.can_id = 0x000;
+    canMsg1.can_dlc = 4;
+    canMsg1.data[0] = 0xFF;
+    canMsg1.data[1] = 0xFF;
+    canMsg1.data[2] = 0xFF;
+    canMsg1.data[3] = 0xFF;
+    mcp2515.sendMessage(&canMsg1);
 }
 
-
+/// @brief Main CAN Bus Task to read and print any incoming messages
+/// @param  
 void CanBus_Task(void)
 {
-    Serial.print(" Jsem v SPI tasku\r\n"); 
-  if (mcp2515.readMessage(&canMsgRx) == MCP2515::ERROR_OK) {
-    Serial.print(canMsgRx.can_id, HEX); // print ID
-    Serial.print(" "); 
-    Serial.print(canMsgRx.can_dlc, HEX); // print DLC
-    Serial.print(" ");
-    
-    for (int i = 0; i<canMsgRx.can_dlc; i++)  {  // print the data
-      Serial.print(canMsgRx.data[i],HEX);
-      Serial.print(" ");
+    static bool oncePrint = false;
+    if (!oncePrint) {
+        Serial.println("CAN Task Started\r\n");
+        oncePrint = true;
+        canMsgRx.can_id = 0x12345678;
     }
-
-    Serial.println();      
-  }
+    
+    if (mcp2515.readMessage(&canMsgRx) == MCP2515::ERROR_OK) 
+    {
+        Serial.println(canMsgRx.can_id, HEX); // print ID
+        Serial.println("Zprava prijata "); 
+        Serial.println(canMsgRx.can_dlc, HEX); // print DLC
+        Serial.println(" ");
+    
+        for (int i = 0; i<canMsgRx.can_dlc; i++)  
+        {  // print the data
+            Serial.println(canMsgRx.data[i],HEX);
+            Serial.println(" ");
+        }    
+    }
 }
