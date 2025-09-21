@@ -27,6 +27,7 @@ char imuPitch[6];
 char imuYawRate[6];
 
 extern EthernetUDP Eth_udpPAOGI;
+extern bool useBNO08xRVC ;
 
 // If odd characters showed up.
 void errorHandler()
@@ -64,11 +65,11 @@ void GGA_Handler() //Rec'd GGA
 
     if (blink)
     {
-        digitalWrite(GGAReceivedLED, HIGH);
+        //digitalWrite(GGAReceivedLED, HIGH);
     }
     else
     {
-        digitalWrite(GGAReceivedLED, LOW);
+        //digitalWrite(GGAReceivedLED, LOW);
     }
 
     blink = !blink;
@@ -86,8 +87,8 @@ void GGA_Handler() //Rec'd GGA
         dualReadyGGA = false;  //Force dual GGA ready false because we just sent it to AgIO based off the IMU data
         if (!useDual)
         {
-            digitalWrite(GPSRED_LED, HIGH);    //Turn red GPS LED ON, we have GGA and must have a IMU     
-            digitalWrite(GPSGREEN_LED, LOW);   //Make sure the Green LED is OFF     
+            //digitalWrite(GPSRED_LED, HIGH);    //Turn red GPS LED ON, we have GGA and must have a IMU     
+            //digitalWrite(GPSGREEN_LED, LOW);   //Make sure the Green LED is OFF     
         }
     }
 
