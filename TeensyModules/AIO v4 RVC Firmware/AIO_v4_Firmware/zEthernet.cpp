@@ -64,7 +64,7 @@ void EthernetStart(void)
 
   Ethernet.setLocalIP(Eth_myip);  // Change IP address to IP set by user
   Serial.println("\r\nEthernet status OK");
-  Serial.print("IP set Manually: ");
+  Serial.printf("IP set Manually: ");
   Serial.println(Ethernet.localIP());
 
   Eth_ipDestination[0] = Eth_myip[0];
@@ -72,28 +72,28 @@ void EthernetStart(void)
   Eth_ipDestination[2] = Eth_myip[2];
   Eth_ipDestination[3] = 255;
 
-  Serial.print("\r\nEthernet IP of module: "); Serial.println(Ethernet.localIP());
-  Serial.print("Ethernet sending to IP: "); Serial.println(Eth_ipDestination);
-  Serial.print("All data sending to port: "); Serial.println(portDestination);
+  Serial.printf("\r\nEthernet IP of module: "); Serial.println(Ethernet.localIP());
+  Serial.printf("Ethernet sending to IP: "); Serial.println(Eth_ipDestination);
+  Serial.printf("All data sending to port: "); Serial.println(portDestination);
 
   // init UPD Port sending to AOG
   if (Eth_udpPAOGI.begin(portMy))
   {
-    Serial.print("Ethernet GPS UDP sending from port: ");
+    Serial.printf("Ethernet GPS UDP sending from port: ");
     Serial.println(portMy);
   }
 
   // init UPD Port getting NTRIP from AOG
   if (Eth_udpNtrip.begin(AOGNtripPort)) // AOGNtripPort
   {
-    Serial.print("Ethernet NTRIP UDP listening to port: ");
+    Serial.printf("Ethernet NTRIP UDP listening to port: ");
     Serial.println(AOGNtripPort);
   }
 
   // init UPD Port getting AutoSteer data from AOG
   if (Eth_udpAutoSteer.begin(AOGAutoSteerPort)) // AOGAutoSteerPortipPort
   {
-    Serial.print("Ethernet AutoSteer UDP listening to & send from port: ");
+    Serial.printf("Ethernet AutoSteer UDP listening to & send from port: ");
     Serial.println(AOGAutoSteerPort);
   }
 }

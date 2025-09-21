@@ -131,10 +131,10 @@ void imuHandler()
                 itoa(bnoData.pitchX10, imuRoll, 10);
             }
 
-            //Serial.print(rvc.angCounter);
-            //Serial.print(", ");
-            //Serial.print(bnoData.angVel);
-            //Serial.print(", ");
+            //Serial.printf(rvc.angCounter);
+            //Serial.printf(", ");
+            //Serial.printf(bnoData.angVel);
+            //Serial.printf(", ");
             // YawRate
             if (rvc.angCounter > 0)
             {

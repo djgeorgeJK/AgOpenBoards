@@ -522,7 +522,7 @@ void autosteerLoop()
           //gpsSpeed = ((float)(autoSteerUdpData[5] | autoSteerUdpData[6] << 8)) * 0.1;
           float speedPulse = gpsSpeed * 36.1111;
 
-          //Serial.print(gpsSpeed); Serial.print(" -> "); Serial.println(speedPulse);
+          //Serial.printf(gpsSpeed); Serial.printf(" -> "); Serial.println(speedPulse);
 
           if (gpsSpeed > 0.11) { // 0.10 wasn't high enough
               tone(GP_VELOCITY_PIN, uint16_t(speedPulse));
@@ -558,7 +558,7 @@ void ReceiveUdp()
 
     // if (len > 0)
     // {
-    //  Serial.print("ReceiveUdp: ");
+    //  Serial.printf("ReceiveUdp: ");
     //  Serial.println(len);
     // }
 
@@ -582,7 +582,7 @@ void ReceiveUdp()
                 //Bit 8,9    set point steer angle * 100 is sent
                 steerAngleSetPoint = ((float)(autoSteerUdpData[8] | ((int8_t)autoSteerUdpData[9]) << 8)) * 0.01; //high low bytes
 
-                //Serial.print("steerAngleSetPoint: ");
+                //Serial.printf("steerAngleSetPoint: ");
                 //Serial.println(steerAngleSetPoint);
 
                 //Serial.println(gpsSpeed);
