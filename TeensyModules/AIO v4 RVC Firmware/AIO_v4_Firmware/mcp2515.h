@@ -315,6 +315,21 @@ class MCP2515
 
         static const uint8_t STAT_RXIF_MASK = STAT_RX0IF | STAT_RX1IF;
 
+        enum /* Rx STATUS response*/ RxSTAT : uint8_t {
+            RXSTAT_NO_RESPONSE = (0<<7 | 0<<6),
+            RXSTAT_RXB0_FULL = (0<<7 | 1<<6),
+            RXSTAT_RXB1_FULL = (1<<7 | 0<<6),
+            RXSTAT_MESSAGE_BOTH = 0xC0,
+            RXSTAT_STANDARD_FRAME = (0<<4 | 0<<3),
+            RXSTAT_EXTENDED_FRAME = (1<<4 | 0<<3),
+            RXSTAT_FILTER0MATCH = (0<<2 | 0<<1 | 0<<0),
+            RXSTAT_FILTER1MATCH = (0<<2 | 0<<1 | 1<<0),
+            RXSTAT_FILTER2MATCH = (0<<2 | 1<<1 | 0<<0),
+            RXSTAT_FILTER3MATCH = (0<<2 | 1<<1 | 1<<0),
+            RXSTAT_FILTER4MATCH = (1<<2 | 0<<1 | 0<<0),
+            RXSTAT_FILTER5MATCH = (1<<2 | 0<<1 | 1<<0)            
+        };
+
         enum /*class*/ TXBnCTRL : uint8_t {
             TXB_ABTF   = 0x40,
             TXB_MLOA   = 0x20,
@@ -492,6 +507,7 @@ class MCP2515
         void clearInterrupts(void);
         void clearTXInterrupts(void);
         uint8_t getStatus(void);
+        uint8_t getRxStatus(void);
         void clearRXnOVR(void);
         void clearMERR();
         void clearERRIF();

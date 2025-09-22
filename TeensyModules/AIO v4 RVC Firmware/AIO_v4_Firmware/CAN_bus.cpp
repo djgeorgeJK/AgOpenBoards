@@ -62,10 +62,6 @@ void CanBus_Init(void)
     MCP2515::ERROR err = mcp2515.setNormalMode();
     //MCP2515::ERROR err = mcp2515.setListenOnlyMode();
     Serial.printf("CAN Bus Initialized, err: %d \r\n", err);
-
-   
-    mcp2515.sendMessage(&canMsg1);
-    Serial.printf("CAN mesage sent");
 }
 
 /// @brief Main CAN Bus Task to read and print any incoming messages
@@ -109,7 +105,7 @@ void CanBus_Task(void)
         if (low == '2')
         {
             uint8_t stat = mcp2515.getRxStatus();
-            Serial.printf("Status je: %X\r\n", stat);
+            Serial.printf("Rx Status je: %X\r\n", stat);
         }
     }
 
