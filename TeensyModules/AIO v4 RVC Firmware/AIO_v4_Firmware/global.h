@@ -2,7 +2,7 @@
 
 #define FW_MAJ          0
 #define FW_MIN          1
-#define FW_PATCH        5
+#define FW_PATCH        6
 
 
 

@@ -20,6 +20,7 @@ MCP2515::MCP2515(const uint8_t _CS, const uint32_t _SPI_CLOCK, SPIClass * _SPI)
     else {
         SPIn = &SPI;
         SPIn->begin();
+        Serial.println("Using default SPI instance");
     }
 
     SPICS = _CS;
@@ -28,12 +29,13 @@ MCP2515::MCP2515(const uint8_t _CS, const uint32_t _SPI_CLOCK, SPIClass * _SPI)
     digitalWrite(SPICS, HIGH);
 }
 
-void MCP2515::startSPI() {    
+void MCP2515::initSPI() {
+    SPIn->beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
     digitalWrite(SPICS, LOW);
 }
 
-void MCP2515::initSPI() {
-    SPIn->beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE0));
+void MCP2515::startSPI() {
+    //SPIn->beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
     digitalWrite(SPICS, LOW);
 }
 
@@ -150,6 +152,16 @@ uint8_t MCP2515::getStatus(void)
 {
     startSPI();
     SPIn->transfer(INSTRUCTION_READ_STATUS);
+    uint8_t i = SPIn->transfer(0x00);
+    endSPI();
+
+    return i;
+}
+
+uint8_t MCP2515::getRxStatus(void)
+{
+    startSPI();
+    SPIn->transfer(INSTRUCTION_RX_STATUS);
     uint8_t i = SPIn->transfer(0x00);
     endSPI();
 
@@ -686,8 +698,8 @@ MCP2515::ERROR MCP2515::readMessage(struct can_frame *frame)
 {
     ERROR rc;
     uint8_t stat = getStatus();
-    if(stat != 0)
-        Serial.printf("Status je: %X\r\n", stat);
+     if(stat != 0)
+        { Serial.printf("Status je: %X\r\n", stat);}
 
     if ( stat & STAT_RX0IF ) {
         rc = readMessage(RXB0, frame);

@@ -91,6 +91,14 @@ uint8_t aog2Count = 0;
 float sensorReading;
 float sensorSample;
 
+///////////   Function protptypes  /////////////
+///////////   Function protptypes  /////////////
+#ifdef ARDUINO_TEENSY41
+void SendUdp(uint8_t *data, uint8_t datalen, IPAddress dip, uint16_t dport);
+#endif
+///////////   Function protptypes  /////////////
+
+
 elapsedMillis gpsSpeedUpdateTimer = 0;
 
 //EEPROM
@@ -815,11 +823,11 @@ void ReceiveUdp()
                     }
                     scanReply[sizeof(scanReply)-1] = CK_A;
 
-                    static IPAddress ipDest[] = { 255,255,255,255 };
+                    static IPAddress ipDest( 255,255,255,255 );
                     uint16_t portDest = 9999; //AOG port that listens
 
                     //off to AOG
-                    SendUdp(scanReply, sizeof(scanReply), &ipDest, portDest);
+                    SendUdp(scanReply, sizeof(scanReply), ipDest, portDest);
                 }
             }
         } //end if 80 81 7F

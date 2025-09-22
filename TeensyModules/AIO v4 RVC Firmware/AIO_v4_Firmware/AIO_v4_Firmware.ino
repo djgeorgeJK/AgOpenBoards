@@ -332,7 +332,7 @@ void TaskScheduler(void)
             //Buttons_Sample();
         }
 
-        if ((systick_millis_count % MACHINE_LOOP_PERIOD_MS) == 0)    // each 50 ms
+        if ((systick_millis_count % MACHINE_LOOP_PERIOD_MS) == 0)    // each 100 ms
         {
             Machine_loop();
             CanBus_Task();

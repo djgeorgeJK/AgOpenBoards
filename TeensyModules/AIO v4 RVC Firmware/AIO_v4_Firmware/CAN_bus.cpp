@@ -11,7 +11,7 @@
 #include "global.h"
 #include "mcp2515.h"
 #include "gpio.h"
-#include "log.h"
+
 /********************************************************************************
  * DEFINITIONS, ENUMS, STRUCTURES AND TYPEDEFS
  ********************************************************************************/     
@@ -28,11 +28,16 @@
 /********************************************************************************
  * VARIABLE DECLARATIONS
  ********************************************************************************/
-MCP2515 mcp2515(CAN_CS_PIN, 50000); // CS, SPI speed, MOSI, MISO, SCK
-can_frame_t canMsg1;
+MCP2515 mcp2515(CAN_CS_PIN, 1000000); // CS, SPI speed, MOSI, MISO, SCK
+can_frame_t canMsg1 = {
+    .can_id = 0x321,
+    .can_dlc = 8,
+    .data = {0xFF, 0xFF, 0xFF, 0xFF, 0x12, 0xFF, 0xFF, 0xFF}    
+};
 can_frame_t canMsg2;
 can_frame_t canMsgRx;
 
+  
 /********************************************************************************
  * PRIVATE FUNCTION PROTOTYPES
  ********************************************************************************/
@@ -45,27 +50,22 @@ void CanBus_Init(void)
 {
     Serial.println("CAN Start Init");
     
-    pinMode(CAN_MISO_PIN, INPUT);
+    //pinMode(CAN_MISO_PIN, INPUT_PULLUP);
 
     //SPI.setClockDivider(SPI_CLOCK_DIV32);
-    //SPI.begin();
-    mcp2515.reset();
-    
-    mcp2515.setBitrate(CAN_250KBPS, MCP_8MHZ);
-    
-    //mcp2515.setBitrate(CAN_500KBPS, MCP_16MHZ);
+    // SPI.begin();
+    // SPI.beginTransaction(SPISettings(500000, MSBFIRST, SPI_MODE0));
+    mcp2515.reset();    
+    mcp2515.setBitrate(CAN_250KBPS, MCP_8MHZ);    
+      
+
     MCP2515::ERROR err = mcp2515.setNormalMode();
+    //MCP2515::ERROR err = mcp2515.setListenOnlyMode();
+    Serial.printf("CAN Bus Initialized, err: %d \r\n", err);
 
-    //mcp2515.setListenOnlyMode();
-    Serial.printf("CAN Bus Initialized,err: %d \r\n", err);
-
-    canMsg1.can_id = 0x000;
-    canMsg1.can_dlc = 4;
-    canMsg1.data[0] = 0xFF;
-    canMsg1.data[1] = 0xFF;
-    canMsg1.data[2] = 0xFF;
-    canMsg1.data[3] = 0xFF;
+   
     mcp2515.sendMessage(&canMsg1);
+    Serial.printf("CAN mesage sent");
 }
 
 /// @brief Main CAN Bus Task to read and print any incoming messages
@@ -74,22 +74,43 @@ void CanBus_Task(void)
 {
     static bool oncePrint = false;
     if (!oncePrint) {
-        Serial.println("CAN Task Started\r\n");
+        Serial.printf("CAN Task Started\r\n");
         oncePrint = true;
         canMsgRx.can_id = 0x12345678;
     }
     
-    if (mcp2515.readMessage(&canMsgRx) == MCP2515::ERROR_OK) 
-    {
-        Serial.println(canMsgRx.can_id, HEX); // print ID
-        Serial.println("Zprava prijata "); 
-        Serial.println(canMsgRx.can_dlc, HEX); // print DLC
-        Serial.println(" ");
     
-        for (int i = 0; i<canMsgRx.can_dlc; i++)  
-        {  // print the data
-            Serial.println(canMsgRx.data[i],HEX);
-            Serial.println(" ");
+    
+    
+    if (Serial.available() > 0) 
+    {   byte low = Serial.read();
+        if (low == 's')
+        {
+            mcp2515.sendMessage(&canMsg1);
+            Serial.println("CAN message sent \r\n");
         }    
+
+
+        if (low == '1')
+        {
+           if (mcp2515.readMessage(&canMsgRx) == MCP2515::ERROR_OK) 
+            {
+                Serial.printf("%X, dlc %X", canMsgRx.can_id, canMsgRx.can_dlc); // print ID and DLC
+                Serial.printf("Zprava prijata ");         
+            
+                // for (int i = 0; i<canMsgRx.can_dlc; i++)  
+                // {  // print the data
+                //     Serial.println(canMsgRx.data[i],HEX);
+                //     Serial.println(" ");
+                // }    
+            }
+        }    
+
+        if (low == '2')
+        {
+            uint8_t stat = mcp2515.getRxStatus();
+            Serial.printf("Status je: %X\r\n", stat);
+        }
     }
+
 }
