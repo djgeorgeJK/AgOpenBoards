@@ -1,0 +1,3 @@
+[submodule "TeensyModules/AIO v4 RVC Firmware/AIO_v4_Firmware/modules/mcp2515"]
+	path = TeensyModules/AIO v4 RVC Firmware/AIO_v4_Firmware/modules/mcp2515
+	url = ../../autowp/arduino-mcp2515.git

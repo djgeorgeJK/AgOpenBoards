@@ -7,9 +7,11 @@
  ********************************************************************************/
 #include <Arduino.h>
 #include <stdint.h>
+#include "can_bus.h"
+
 
 #include "global.h"
-#include "mcp2515.h"
+#include "modules\mcp2515\mcp2515.h"
 #include "gpio.h"
 
 /********************************************************************************
@@ -30,12 +32,14 @@
  ********************************************************************************/
 MCP2515 mcp2515(CAN_CS_PIN, 1000000); // CS, SPI speed, MOSI, MISO, SCK
 can_frame_t canMsg1 = {
-    .can_id = 0x321,
-    .can_dlc = 8,
-    .data = {0xFF, 0xFF, 0xFF, 0xFF, 0x12, 0xFF, 0xFF, 0xFF}    
+    .can_id = 0x0C300840 | CAN_EFF_FLAG,
+    .can_dlc = 2,
+    //.data = {0xFF, 0xFF, 0xFF, 0xFF, 0x12, 0xFF, 0xFF, 0xFF}    
+    .data = {0x80, 0x12}    
 };
 can_frame_t canMsg2;
 can_frame_t canMsgRx;
+
 
   
 /********************************************************************************
@@ -61,9 +65,22 @@ void CanBus_Init(void)
 
     MCP2515::ERROR err = mcp2515.setNormalMode();
     //MCP2515::ERROR err = mcp2515.setListenOnlyMode();
+    //MCP2515::ERROR err = mcp2515.setLoopbackMode();
+
+    /* Cci cist zpravy:
+     *  - 0x1ce68226   A8 29  nebo 2A je aktivni vysev leve , prave strany
+     * Mask -   1 znamena ze bit se bude testovat filtrem
+     * Filter pak muzi videt i 0 i 1
+     * U externded message koukaji na spodnich 29 bitu(0x1FFFFFFF)
+     */
+    mcp2515.setFilterMask(MCP2515::MASK0, true, 0x1FFFFFFF);
+    mcp2515.setFilter(MCP2515::RXF0, true, 0x1ce68226); // RXB0 - Extended
+
     Serial.printf("CAN Bus Initialized, err: %d \r\n", err);
 }
 
+//#include <WDT_T4.h>
+//Watchdog_t4 wd;
 /// @brief Main CAN Bus Task to read and print any incoming messages
 /// @param  
 void CanBus_Task(void)
@@ -72,40 +89,61 @@ void CanBus_Task(void)
     if (!oncePrint) {
         Serial.printf("CAN Task Started\r\n");
         oncePrint = true;
-        canMsgRx.can_id = 0x12345678;
+    }
+    
+    if (mcp2515.readMessage(&canMsgRx) == MCP2515::ERROR_OK) 
+    {
+        Serial.printf("Id %X, dlc %X", canMsgRx.can_id, canMsgRx.can_dlc); // print ID and DLC
+        //Serial.printf("Zprava prijata ");         
+    
+        for (int i = 0; i<canMsgRx.can_dlc; i++)  
+        {  // print the data
+                Serial.printf("0x%X ",canMsgRx.data[i]);                 
+        }    
+        Serial.println("");
     }
     
     
-    
-    
+    /*  Processing CLI */
     if (Serial.available() > 0) 
-    {   byte low = Serial.read();
-        if (low == 's')
+    {
+        char charIn = Serial.read();    
+        if (charIn == 's')
         {
             mcp2515.sendMessage(&canMsg1);
             Serial.println("CAN message sent \r\n");
+            canMsg1.data[0] ++;
         }    
 
 
-        if (low == '1')
+        if (charIn == '1')
         {
-           if (mcp2515.readMessage(&canMsgRx) == MCP2515::ERROR_OK) 
-            {
-                Serial.printf("%X, dlc %X", canMsgRx.can_id, canMsgRx.can_dlc); // print ID and DLC
-                Serial.printf("Zprava prijata ");         
+            uint8_t stat = mcp2515.getStatus();
+            if(stat != 0)
+            { 
+                Serial.printf("Status je: %X\r\n", stat);
+            }          
             
-                // for (int i = 0; i<canMsgRx.can_dlc; i++)  
-                // {  // print the data
-                //     Serial.println(canMsgRx.data[i],HEX);
-                //     Serial.println(" ");
-                // }    
-            }
         }    
 
-        if (low == '2')
+        if (charIn == '2')
         {
             uint8_t stat = mcp2515.getRxStatus();
             Serial.printf("Rx Status je: %X\r\n", stat);
+        }
+        
+
+        if (charIn == 'r')
+        {
+            Serial.printf("Rebooting...."); 
+            delay(800);
+            //wdt_disable();
+            //wdt_enable(WDTO_15MS);
+            
+            
+        
+            //SCB_AIRCR = 0x05FA0004;  // Request system reset
+            _reboot_Teensyduino_();
         }
     }
 
