@@ -74,6 +74,13 @@ ConfigIP_t networkAddress;   //3 bytes
 byte CK_A = 0;
 byte CK_B = 0;
 
+typedef enum Remoteswitch   // mask
+{
+    RS_WORKING       = 0x01,         // H level activate Working mode
+    RS_STEERING      = 0x02,        // H level activate Steering mode
+    RS_REMOTE_SWITCH = 0x04,        // zatim nevim
+    RS_AUTOSTEER     = 0x08        // H level activate Autosteer mode
+}Remoteswitch_t;
 
 //Speed pulse output
 elapsedMillis speedPulseUpdateTimer = 0;

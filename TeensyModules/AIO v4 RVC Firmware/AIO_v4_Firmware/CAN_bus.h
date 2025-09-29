@@ -25,7 +25,9 @@
 
 void CanBus_Init(void);
 void CanBus_Task(void);
-
+bool CanBus_IsLeftSideActive(void);
+bool CanBus_IsRightSideActive(void);
+bool CanBus_IsSeedingActive(void);
 
 
 

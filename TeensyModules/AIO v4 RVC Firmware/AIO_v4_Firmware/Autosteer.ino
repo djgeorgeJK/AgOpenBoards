@@ -399,11 +399,13 @@ void autosteerLoop()
     }
 
     ButtState.remoteSwitch = digitalRead(REMOTE_PIN);
-    ButtState.switchByte = 0;
-    ButtState.switchByte |= (ButtState.remoteSwitch << 2);  //put remote in bit 2
-    ButtState.switchByte |= (ButtState.steerSwitch << 1);   //put steerswitch status in bit 1 position
-    ButtState.switchByte |= ButtState.workSwitch;
-    
+    uint8_t udpSwitchMask = 0;
+    udpSwitchMask |= ((ButtState.workSwitch != 0) | CanBus_IsSeedingActive()) ? (RS_WORKING) : 0;
+    udpSwitchMask |= ButtState.remoteSwitch != 0 ? (RS_REMOTE_SWITCH) : 0;   //put remote in bit 2
+    udpSwitchMask |= ButtState.steerSwitch != 0 ? (RS_STEERING) : 0;         //put steerswitch status in bit 1 position
+
+    ButtState.switchByte = udpSwitchMask;
+
     
     //get steering position
     #ifdef USE_EXTERN_ADC

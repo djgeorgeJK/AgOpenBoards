@@ -27,6 +27,15 @@
 //  6 = Lindner (F0/240 Navagation Controller, 13/19 Steering Controller)
 //  7 = AgOpenGPS - Remote CAN/PWM module (1C/28 Navagation Controller, 13/19 Steering Controller)
 
+#define CAN_TASK_PERIOD_MS      100
+#define CAN_SEED_TIMEOUT_MS     500
+
+typedef struct SeedingState
+{
+    bool leftSideActive;
+    bool rightSideActive;
+    uint16_t seedMessageTimeout;
+}SeedingState_t;
 /********************************************************************************
  * VARIABLE DECLARATIONS
  ********************************************************************************/
@@ -40,7 +49,11 @@ can_frame_t canMsg1 = {
 can_frame_t canMsg2;
 can_frame_t canMsgRx;
 
-
+SeedingState_t seedingState = 
+{
+    .leftSideActive = false, 
+    .rightSideActive = false
+};
   
 /********************************************************************************
  * PRIVATE FUNCTION PROTOTYPES
@@ -63,20 +76,23 @@ void CanBus_Init(void)
     mcp2515.setBitrate(CAN_250KBPS, MCP_8MHZ);    
       
 
-    MCP2515::ERROR err = mcp2515.setNormalMode();
-    //MCP2515::ERROR err = mcp2515.setListenOnlyMode();
-    //MCP2515::ERROR err = mcp2515.setLoopbackMode();
+    
 
-    /* Cci cist zpravy:
+    /* Chci cist zpravy:
      *  - 0x1ce68226   A8 29  nebo 2A je aktivni vysev leve , prave strany
      * Mask -   1 znamena ze bit se bude testovat filtrem
      * Filter pak muzi videt i 0 i 1
      * U externded message koukaji na spodnich 29 bitu(0x1FFFFFFF)
+     * S tim to filtrem uz klasickej read vrac jen tuto zpravu
      */
     mcp2515.setFilterMask(MCP2515::MASK0, true, 0x1FFFFFFF);
     mcp2515.setFilter(MCP2515::RXF0, true, 0x1ce68226); // RXB0 - Extended
 
+    MCP2515::ERROR err = mcp2515.setNormalMode();
+    //MCP2515::ERROR err = mcp2515.setListenOnlyMode();
+    //MCP2515::ERROR err = mcp2515.setLoopbackMode();
     Serial.printf("CAN Bus Initialized, err: %d \r\n", err);
+    seedingState.seedMessageTimeout = CAN_SEED_TIMEOUT_MS;
 }
 
 //#include <WDT_T4.h>
@@ -90,9 +106,21 @@ void CanBus_Task(void)
         Serial.printf("CAN Task Started\r\n");
         oncePrint = true;
     }
+
+    if(seedingState.seedMessageTimeout > CAN_TASK_PERIOD_MS)
+    {
+        seedingState.seedMessageTimeout -= CAN_TASK_PERIOD_MS;
+    }
+    else    
+    {
+        seedingState.leftSideActive = false;
+        seedingState.rightSideActive = false;        
+        seedingState.seedMessageTimeout = CAN_SEED_TIMEOUT_MS;
+    }
     
     if (mcp2515.readMessage(&canMsgRx) == MCP2515::ERROR_OK) 
     {
+        canMsgRx.can_id &= CAN_EFF_MASK; // mask off the EFF/RTR/ERR flags
         Serial.printf("Id %X, dlc %X", canMsgRx.can_id, canMsgRx.can_dlc); // print ID and DLC
         //Serial.printf("Zprava prijata ");         
     
@@ -101,6 +129,20 @@ void CanBus_Task(void)
                 Serial.printf("0x%X ",canMsgRx.data[i]);                 
         }    
         Serial.println("");
+
+        if(canMsgRx.data[0] == 0xA8)
+        {
+            if(canMsgRx.data[1] == 0x2A)
+            {
+                // right side active
+                seedingState.rightSideActive = true;
+            }
+            else if (canMsgRx.data[1] == 0x29)
+            {
+                // left side active
+                seedingState.leftSideActive = true;
+            }
+        }
     }
     
     
@@ -148,3 +190,18 @@ void CanBus_Task(void)
     }
 
 }
+
+bool CanBus_IsLeftSideActive(void)
+{
+    return seedingState.leftSideActive;
+}   
+
+bool CanBus_IsRightSideActive(void)
+{
+    return seedingState.rightSideActive;
+}  
+
+bool CanBus_IsSeedingActive(void)
+{
+    return seedingState.rightSideActive || seedingState.leftSideActive;
+}  
