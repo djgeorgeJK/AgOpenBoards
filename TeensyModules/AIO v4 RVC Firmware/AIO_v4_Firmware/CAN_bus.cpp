@@ -136,11 +136,15 @@ void CanBus_Task(void)
             {
                 // right side active
                 seedingState.rightSideActive = true;
+                Serial.printf("Leva ON"); 
+                seedingState.seedMessageTimeout = CAN_SEED_TIMEOUT_MS;
             }
             else if (canMsgRx.data[1] == 0x29)
             {
                 // left side active
                 seedingState.leftSideActive = true;
+                Serial.printf("Prava ON"); 
+                seedingState.seedMessageTimeout = CAN_SEED_TIMEOUT_MS;
             }
         }
     }
