@@ -27,8 +27,8 @@
 //  6 = Lindner (F0/240 Navagation Controller, 13/19 Steering Controller)
 //  7 = AgOpenGPS - Remote CAN/PWM module (1C/28 Navagation Controller, 13/19 Steering Controller)
 
-#define CAN_TASK_PERIOD_MS      100
-#define CAN_SEED_TIMEOUT_MS     500
+#define CAN_TASK_PERIOD_MS      100u
+#define CAN_SEED_TIMEOUT_MS     2000u
 
 typedef struct SeedingState
 {
@@ -49,10 +49,11 @@ can_frame_t canMsg1 = {
 can_frame_t canMsg2;
 can_frame_t canMsgRx;
 
-SeedingState_t seedingState = 
+static SeedingState_t seedingState = 
 {
     .leftSideActive = false, 
-    .rightSideActive = false
+    .rightSideActive = false,
+    .seedMessageTimeout = CAN_SEED_TIMEOUT_MS
 };
   
 /********************************************************************************
@@ -110,12 +111,14 @@ void CanBus_Task(void)
     if(seedingState.seedMessageTimeout > CAN_TASK_PERIOD_MS)
     {
         seedingState.seedMessageTimeout -= CAN_TASK_PERIOD_MS;
+        //Serial.printf("%d\r\n", seedingState.seedMessageTimeout);
     }
     else    
     {
         seedingState.leftSideActive = false;
         seedingState.rightSideActive = false;        
         seedingState.seedMessageTimeout = CAN_SEED_TIMEOUT_MS;
+        Serial.printf("Mazu left right priznaky");
     }
     
     if (mcp2515.readMessage(&canMsgRx) == MCP2515::ERROR_OK) 
@@ -130,7 +133,16 @@ void CanBus_Task(void)
         }    
         Serial.println("");
 
-        if(canMsgRx.data[0] == 0xA8)
+
+        // Can zprava xx68226 00 02 prijde kdyz se zmackne tlacitko sej na miste 1D 
+        if(canMsgRx.data[0] == 0x00 && canMsgRx.data[1] == 0x02)
+        {
+            Serial.printf("Zmackle tlacitko\r\n");     
+            seedingState.rightSideActive = true;      
+            seedingState.seedMessageTimeout = CAN_SEED_TIMEOUT_MS; 
+        }
+        
+        if(canMsgRx.data[0] == 0xA8)    // zprava na aktivni sekce
         {
             if(canMsgRx.data[1] == 0x2A)
             {
@@ -207,5 +219,5 @@ bool CanBus_IsRightSideActive(void)
 
 bool CanBus_IsSeedingActive(void)
 {
-    return seedingState.rightSideActive || seedingState.leftSideActive;
+    return (seedingState.rightSideActive) || (seedingState.leftSideActive);
 }  

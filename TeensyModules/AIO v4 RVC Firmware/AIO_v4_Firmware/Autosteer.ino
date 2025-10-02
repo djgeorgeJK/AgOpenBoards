@@ -278,6 +278,7 @@ void autosteerSetup()
 
 void autosteerLoop()
 {
+  static uint8_t lastSwitchByte = 0xFF;
   ReceiveUdp();
 
   // Loop triggers every 100 msec and sends back gyro heading, and roll, steer angle etc
@@ -299,7 +300,7 @@ void autosteerLoop()
     }
 
     //read all the switches
-    ButtState.workSwitch = digitalRead(WORKSW_PIN);       // read work switch
+    ButtState.workSwitch = (bool)digitalRead(WORKSW_PIN);       // read work switch
 
     //Engage steering via 1 PCB Button or 2 Tablet
 
@@ -400,13 +401,18 @@ void autosteerLoop()
 
     ButtState.remoteSwitch = digitalRead(REMOTE_PIN);
     uint8_t udpSwitchMask = 0;
-    udpSwitchMask |= ((ButtState.workSwitch != 0) || CanBus_IsSeedingActive()) ? (RS_WORKING) : 0;
-    udpSwitchMask |= ButtState.remoteSwitch != 0 ? (RS_REMOTE_SWITCH) : 0;   //put remote in bit 2
-    udpSwitchMask |= ButtState.steerSwitch != 0 ? (RS_STEERING) : 0;         //put steerswitch status in bit 1 position
+    //udpSwitchMask |= ((ButtState.workSwitch != false) || (CanBus_IsSeedingActive() != false)) ? ((uint8_t)RS_WORKING) : 0u;
+    udpSwitchMask |= ((CanBus_IsSeedingActive() != false)) ? ((uint8_t)RS_WORKING) : 0u;
+    udpSwitchMask |= (ButtState.remoteSwitch != 0) ? (RS_REMOTE_SWITCH) : 0;   //put remote in bit 2
+    udpSwitchMask |= (ButtState.steerSwitch != 0) ? (RS_STEERING) : 0;         //put steerswitch status in bit 1 position
 
     ButtState.switchByte = udpSwitchMask;
-
     
+    if (udpSwitchMask != lastSwitchByte)  
+    {
+       Serial.printf("Work switch %d\r\n",udpSwitchMask );
+       lastSwitchByte = udpSwitchMask;
+    }    
     //get steering position
     #ifdef USE_EXTERN_ADC
       if (steerConfig.SingleInputWAS)   //Single Input ADS
