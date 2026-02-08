@@ -46,7 +46,12 @@ can_frame_t canMsg1 = {
     //.data = {0xFF, 0xFF, 0xFF, 0xFF, 0x12, 0xFF, 0xFF, 0xFF}    
     .data = {0x80, 0x12}    
 };
-can_frame_t canMsg2;
+can_frame_t canMsg2 = {
+    .can_id = 0x1CE68226 | CAN_EFF_FLAG,
+    .can_dlc = 8,
+    .data = { 0x00, 0x02, 0x1F, 0x01, 0x74, 0x01, 0x05, 0xFF }
+       //      00   02     1F    01    74    01    05    ff
+};
 can_frame_t canMsgRx;
 
 static SeedingState_t seedingState = 
@@ -134,12 +139,16 @@ void CanBus_Task(void)
         Serial.println("");
 
 
-        // Can zprava xx68226 00 02 prijde kdyz se zmackne tlacitko sej na miste 1D 
+        // Can zprava xx68226 00 02 prijde kdyz se zmackne tlacitko na pnelu kverneland sej na miste 1D 
+        //                    00 02 1F 01 74 01 05 ff  tlacitko vypnuti prave sekce a je vypla
+        //                    00 02 1F 01 74 01 05 ff prijde taky kdyz je tlacitko zase zaple
+        //                    00 01 1E 01 74 01 04 ff  prijde kdyz zmacknu tlasitko vypmuti leve pulky
+        //             zkousel jsem tyto zpravy odeslat, ale nic se nedelo....
         if(canMsgRx.data[0] == 0x00 && canMsgRx.data[1] == 0x02)
         {
             Serial.printf("Zmackle tlacitko\r\n");     
-            seedingState.rightSideActive = true;      
-            seedingState.seedMessageTimeout = CAN_SEED_TIMEOUT_MS; 
+            //seedingState.rightSideActive = true;      
+            //seedingState.seedMessageTimeout = CAN_SEED_TIMEOUT_MS; 
         }
         
         if(canMsgRx.data[0] == 0xA8)    // zprava na aktivni sekce
@@ -172,6 +181,14 @@ void CanBus_Task(void)
             Serial.println("CAN message sent \r\n");
             canMsg1.data[0] ++;
         }    
+
+        if (charIn == 'd')
+        {
+            
+            mcp2515.sendMessage(&canMsg2);
+            Serial.println("CAN message 2sent \r\n");
+        }   
+
 
 
         if (charIn == '1')
