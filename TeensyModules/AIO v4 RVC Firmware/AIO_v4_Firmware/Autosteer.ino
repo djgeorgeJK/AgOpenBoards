@@ -16,7 +16,7 @@
      122hz = 1
      3921hz = 2
 */
-#define PWM_Frequency 1
+#define PWM_Frequency  2000
 
 //WAS Calabration
 float inputWAS[] =  { -50.00, -45.0, -40.0, -35.0, -30.0, -25.0, -20.0, -15.0, -10.0, -5.0, 0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0 };  //Input WAS do not adjust
@@ -26,17 +26,17 @@ float outputWAS[] = { -50.00, -45.0, -40.0, -35.0, -30.0, -25.0, -20.0, -15.0, -
 
 
 
-//   ***********  Motor drive connections  **************888
+//   ***********  Motor drive connections  **************
 //Connect ground only for cytron, Connect Ground and +5v for IBT2
 
 //Dir1 for Cytron Dir, Both L and R enable for IBT2
-#define DIR1_RL_ENABLE  2
+#define MC_DIRECTION_PIN    2
 
 //PWM pin for Cytron PWM, Left PWM for IBT2
-#define PWM1_LPWM  3
+#define MC_PWM_1  3
 
 //Not Connected for Cytron, Right PWM for IBT2
-#define PWM2_RPWM  4
+#define MC_PWM_2LEFT  4
 
 
 #define CONST_180_DIVIDED_BY_PI 57.2957795130823
@@ -58,7 +58,7 @@ float outputWAS[] = { -50.00, -45.0, -40.0, -35.0, -30.0, -25.0, -20.0, -15.0, -
 // ethernet
 
 extern IPAddress Eth_ipDestination;
-extern byte Eth_myip[]; 
+extern byte Eth_myip[];
 extern unsigned int portDestination;
 
 //uint8_t Ethernet::buffer[200]; // udp send and receive buffer
@@ -90,16 +90,15 @@ int8_t PGN_250_Size = sizeof(PGN_250) - 1;
 uint8_t aog2Count = 0;
 float sensorReading;
 float sensorSample;
+elapsedMillis gpsSpeedUpdateTimer = 0;
 
 ///////////   Function protptypes  /////////////
-///////////   Function protptypes  /////////////
+
 #ifdef ARDUINO_TEENSY41
 void SendUdp(uint8_t *data, uint8_t datalen, IPAddress dip, uint16_t dport);
 #endif
-///////////   Function protptypes  /////////////
 
 
-elapsedMillis gpsSpeedUpdateTimer = 0;
 
 //EEPROM
 int16_t EEread = 0;
@@ -149,7 +148,7 @@ struct Storage {
 
 //Variables for settings - 0 is false
 struct Setup {
-  uint8_t InvertWAS = 0;
+  uint8_t InvertWAS = 0;            // Wheel angle Sensor
   uint8_t IsRelayActiveHigh = 0;    // if zero, active low (default)
   uint8_t MotorDriveDirection = 0;
   uint8_t SingleInputWAS = 1;
@@ -166,9 +165,9 @@ struct Setup {
 
 void steerConfigInit()
 {
-  if (steerConfig.CytronDriver) 
+  if (0 == steerConfig.CytronDriver)
   {
-    pinMode(PWM2_RPWM, OUTPUT);
+    pinMode(MC_PWM_2LEFT, OUTPUT);
   }
 }
 
@@ -180,36 +179,19 @@ void steerSettingsInit()
 
 void autosteerSetup()
 {
-    //PWM rate settings. Set them both the same!!!!
-    /*  PWM Frequency ->
-          490hz (default) = 0
-          122hz = 1
-          3921hz = 2
-    */
-    if (PWM_Frequency == 0)
-    {
-      analogWriteFrequency(PWM1_LPWM, 490);
-      analogWriteFrequency(PWM2_RPWM, 490);
-    }
-    else if (PWM_Frequency == 1)
-    {
-      analogWriteFrequency(PWM1_LPWM, 122);
-      analogWriteFrequency(PWM2_RPWM, 122);
-    }
-    else if (PWM_Frequency == 2)
-    {
-      analogWriteFrequency(PWM1_LPWM, 3921);
-      analogWriteFrequency(PWM2_RPWM, 3921);
-    }
+    analogWriteFrequency(MC_PWM_1, PWM_Frequency);        // Zakladni nosna frekvence PWM
+    analogWrite(MC_PWM_1, 0);                             // Start with 0% Duty
+    //analogWriteFrequency(MC_PWM_2LEFT, PWM_Frequency);
 
     //keep pulled high and drag low to activate, noise free safe
+    pinMode(MC_DIRECTION_PIN, OUTPUT);
+    digitalWrite(MC_DIRECTION_PIN, 1);                  // default to high
+
     pinMode(WORKSW_PIN, INPUT_PULLUP);
     pinMode(STEERSW_PIN, INPUT_PULLUP);
     pinMode(REMOTE_PIN, INPUT_PULLUP);
-    pinMode(DIR1_RL_ENABLE, OUTPUT);
-    
-    
-    
+
+
     // Disable digital inputs for analog input pins
     pinMode(CURRENT_SENSOR_PIN, INPUT_DISABLE);
     pinMode(PRESSURE_SENSOR_PIN, INPUT_DISABLE);
@@ -218,8 +200,8 @@ void autosteerSetup()
     #ifdef USE_EXTERN_ADC
       Wire1.end();
       Wire1.begin();
-        
-      // Check ADC 
+
+      // Check ADC
       if(adc.testConnection())
       {
         Serial.println("ADC Connecton OK");
@@ -241,32 +223,32 @@ void autosteerSetup()
       EEPROM.put(EE_ADDR_READY, EEP_Ident);
       EEPROM.put(EE_ADDR_STEERSET, steerSettings);
       EEPROM.put(EE_ADDR_STEECFG, steerConfig);
-      EEPROM.put(EE_ADDR_NETWORK, networkAddress);   
-      Serial.printf(" Autosetup EEPROM rewritten \r\n"); 
+      EEPROM.put(EE_ADDR_NETWORK, networkAddress);
+      Serial.printf(" Autosetup EEPROM rewritten \r\n");
     }
     else
     {
       EEPROM.get(EE_ADDR_STEERSET, steerSettings);     // read the Settings
       EEPROM.get(EE_ADDR_STEECFG, steerConfig);
-      EEPROM.get(EE_ADDR_NETWORK, networkAddress); 
+      EEPROM.get(EE_ADDR_NETWORK, networkAddress);
       Serial.printf(" Autosetup EEPROM OK \r\n");
     }
 
     steerSettingsInit();
     steerConfigInit();
 
-    if (Autosteer_running) 
+    if (Autosteer_running)
     {
-      Serial.println("Autosteer running, waiting for AgOpenGPS");
-      // Autosteer Led goes Red if ADS1115 is found
-      digitalWrite(AUTOSTEER_ACTIVE_LED, 0);
-      digitalWrite(AUTOSTEER_STANDBY_LED, 1);
+        Serial.println("Autosteer running, waiting for AgOpenGPS");
+        // Autosteer Led goes Red if ADS1115 is found
+        digitalWrite(AUTOSTEER_ACTIVE_LED, 0);
+        digitalWrite(AUTOSTEER_STANDBY_LED, 1);
     }
     else
     {
       Autosteer_running = false;  //Turn off auto steer if no ethernet (Maybe running T4.0)
     //    if(!Ethernet_running)Serial.println("Ethernet not available");
-      Serial.println("Autosteer disabled, GPS only mode");   
+      Serial.println("Autosteer disabled, GPS only mode");
       return;
     }
 
@@ -274,8 +256,9 @@ void autosteerSetup()
       adc.setSampleRate(ADS1115_REG_CONFIG_DR_128SPS); //128 samples per second
       adc.setGain(ADS1115_REG_CONFIG_PGA_6_144V);
     #endif
-}// End of Setup
+} // End of Setup
 
+// ********************  Main loop  *************************************************
 void autosteerLoop()
 {
   static uint8_t lastSwitchByte = 0xFF;
@@ -303,8 +286,6 @@ void autosteerLoop()
     ButtState.workSwitch = (bool)digitalRead(WORKSW_PIN);       // read work switch
 
     //Engage steering via 1 PCB Button or 2 Tablet
-
-    // 1 PCB Button pressed?
     ButtState.reading = digitalRead(STEERSW_PIN);
 
     if (steerConfig.SteerSwitch == 1)
@@ -312,7 +293,7 @@ void autosteerLoop()
         // Switch is off so reset ready for next switch on
         if (ButtState.reading == HIGH)
         {
-           Serial.printf("Sterr active\r\n");
+            //Serial.printf("Sterr active\r\n");
             ButtState.currentState = 1;
             ButtState.steerSwitch = 1;
             ButtState.previous = ButtState.reading;
@@ -364,7 +345,7 @@ void autosteerLoop()
     // Encoder sensor?
     if (steerConfig.ShaftEncoder && pulseCount >= steerConfig.PulseCountMax)
     {
-      ButtState.steerSwitch = 1; 
+      ButtState.steerSwitch = 1;
       ButtState.currentState = 1;
       ButtState.previous = 0;
     }
@@ -377,7 +358,7 @@ void autosteerLoop()
       sensorReading = sensorReading * 0.6 + sensorSample * 0.4;
       if (sensorReading >= steerConfig.PulseCountMax)
       {
-          ButtState.steerSwitch = 1; 
+          ButtState.steerSwitch = 1;
           ButtState.currentState = 1;
           ButtState.previous = 0;
       }
@@ -388,12 +369,12 @@ void autosteerLoop()
     {
       sensorSample = (float)analogRead(CURRENT_SENSOR_PIN);
       sensorSample = (abs(775 - sensorSample)) * 0.5;
-      sensorReading = sensorReading * 0.7 + sensorSample * 0.3;    
+      sensorReading = sensorReading * 0.7 + sensorSample * 0.3;
       sensorReading = min(sensorReading, 255);
 
       if (sensorReading >= steerConfig.PulseCountMax)
       {
-          ButtState.steerSwitch = 1; 
+          ButtState.steerSwitch = 1;
           ButtState.currentState = 1;
           ButtState.previous = 0;
       }
@@ -407,30 +388,34 @@ void autosteerLoop()
     udpSwitchMask |= (ButtState.steerSwitch != 0) ? (RS_STEERING) : 0;         //put steerswitch status in bit 1 position
 
     ButtState.switchByte = udpSwitchMask;
-    
-    if (udpSwitchMask != lastSwitchByte)  
+
+    if (udpSwitchMask != lastSwitchByte)
     {
-       Serial.printf("Work switch %d\r\n",udpSwitchMask );
+       Serial.printf("UDP switch packet:");
+       Serial.printf("Working : %s", udpSwitchMask & RS_WORKING ? "On" : "Off" );
+       Serial.printf("Steer: %s", udpSwitchMask & RS_REMOTE_SWITCH ? "On" : "Off" );
+       Serial.printf("Steer2: %s", udpSwitchMask & RS_STEERING ? "On" : "Off" );
+       Serial.printf("\r\n");
        lastSwitchByte = udpSwitchMask;
-    }    
+    }
     //get steering position
     #ifdef USE_EXTERN_ADC
       if (steerConfig.SingleInputWAS)   //Single Input ADS
-      {      
+      {
         adc.setMux(ADS1115_REG_CONFIG_MUX_SINGLE_0);
         steeringPosition = adc.getConversion();  // 16 bit value 0-65535
         adc.triggerConversion();//ADS1115 Single Mode
         steeringPosition = (steeringPosition >> 1); //bit shift by 2  0 to 13610 is 0 to 5v
-        helloSteerPosition = steeringPosition - 6800;      
+        helloSteerPosition = steeringPosition - 6800;
         steeringPosition = (steeringPosition - 6805;
       }
       else    //ADS1115 Differential Mode
-      {      
+      {
         adc.setMux(ADS1115_REG_CONFIG_MUX_DIFF_0_1);
         steeringPosition = adc.getConversion();
         adc.triggerConversion();
         steeringPosition = (steeringPosition >> 1); //bit shift by 2  0 to 13610 is 0 to 5v
-        helloSteerPosition = steeringPosition - 6800;     
+        helloSteerPosition = steeringPosition - 6800;
         steeringPosition = (steeringPosition - 6805;
       }
     #else
@@ -438,10 +423,10 @@ void autosteerLoop()
       steeringPosition -= (4095/2);       // get middle
     #endif
 
-    //DETERMINE ACTUAL STEERING POSITION    
+    //DETERMINE ACTUAL STEERING POSITION
     //convert position to steer angle. 32 counts per degree of steer pot position in my case
     //  ***** make sure that negative steer angle makes a left turn and positive value is a right turn *****
-    
+
     if (steerConfig.InvertWAS)
     {
       steeringPosition = (steeringPosition - steerSettings.wasOffset);   // 1/2 of full scale
@@ -463,6 +448,7 @@ void autosteerLoop()
         ButtState.currentState = 1;
         ButtState.previous = 0;
         watchdogTimer = WATCHDOG_FORCE_VALUE;
+        //Serial.printf("Zastavuji Steering");
     }
 
     //Map WAS
@@ -471,56 +457,31 @@ void autosteerLoop()
 
     if (watchdogTimer < WATCHDOG_THRESHOLD)
     {
-      //Enable H Bridge for IBT2, hyd aux, etc for cytron
-      if (steerConfig.CytronDriver)
-      {
-        if (steerConfig.IsRelayActiveHigh)
-        {
-          digitalWrite(PWM2_RPWM, 0);
-        }
-        else
-        {
-          digitalWrite(PWM2_RPWM, 1);
-        }
-      }
-      else digitalWrite(DIR1_RL_ENABLE, 1);
+        Serial.printf("Steer Actual: %f, Steer Setpoint: %f, GPS Speed: %f\r\n", steerAngleActual, steerAngleSetPoint, gpsSpeed);
 
-      steerAngleError = steerAngleActual - steerAngleSetPoint;   //calculate the steering error
-      //if (abs(steerAngleError)< steerSettings.lowPWM) steerAngleError = 0;
+        steerAngleError = steerAngleActual - steerAngleSetPoint;   //calculate the steering error
+        //if (abs(steerAngleError)< steerSettings.lowPWM) steerAngleError = 0;
 
-      //Don't turn wheels if speed less than 0.3km/hr
-      if (gpsSpeed < 0.2) steerAngleError = 0;
+        //Don't turn wheels if speed less than 0.3km/hr
+        if (gpsSpeed < 0.2) steerAngleError = 0;
 
-      calcSteeringPID();  //do the pid
-      motorDrive();       //out to motors the pwm value
-      // Autosteer Led goes GREEN if autosteering
+        calcSteeringPID();  //do the pid
+        motorDrive();       //out to motors the pwm value
+        // Autosteer Led goes GREEN if autosteering
 
-      digitalWrite(AUTOSTEER_ACTIVE_LED, 1);
-      digitalWrite(AUTOSTEER_STANDBY_LED, 0);
+        digitalWrite(AUTOSTEER_ACTIVE_LED, 1);
+        digitalWrite(AUTOSTEER_STANDBY_LED, 0);
     }
     else
     {
-      //we've lost the comm to AgOpenGPS, or just stop request
-      //Disable H Bridge for IBT2, hyd aux, etc for cytron
-      if (steerConfig.CytronDriver)
-      {
-        if (steerConfig.IsRelayActiveHigh)
-        {
-          digitalWrite(PWM2_RPWM, 1);
-        }
-        else
-        {
-          digitalWrite(PWM2_RPWM, 0);
-        }
-      }
-      else digitalWrite(DIR1_RL_ENABLE, 0); //IBT2
+        //we've lost the comm to AgOpenGPS, or just stop request
 
-      pwmDrive = 0; //turn off steering motor
-      motorDrive(); //out to motors the pwm value
-      pulseCount = 0;
-      // Autosteer Led goes back to RED when autosteering is stopped
-      digitalWrite (AUTOSTEER_STANDBY_LED, 1);
-      digitalWrite (AUTOSTEER_ACTIVE_LED, 0);
+        pwmDrive = 0; //turn off steering motor
+        motorDrive(); //out to motors the pwm value
+        pulseCount = 0;
+        // Autosteer Led goes back to RED when autosteering is stopped
+        digitalWrite (AUTOSTEER_STANDBY_LED, 1);
+        digitalWrite (AUTOSTEER_ACTIVE_LED, 0);
     }
   } //end of timed loop
 
@@ -602,7 +563,6 @@ void ReceiveUdp()
                 //Serial.println(steerAngleSetPoint);
 
                 //Serial.println(gpsSpeed);
-
                 if ((bitRead(guidanceStatus, 0) == 0) /* || (gpsSpeed < 0.1)*/ || (ButtState.steerSwitch == 1))
                 {
                     watchdogTimer = WATCHDOG_FORCE_VALUE; //turn off steering motor
@@ -694,7 +654,7 @@ void ReceiveUdp()
                 steerSettings.lowPWM = (byte)temp;
 
                 steerSettings.steerSensorCounts = autoSteerUdpData[9]; //sent as setting displayed in AOG
-                
+
 
                 steerSettings.wasOffset = (autoSteerUdpData[10]);  //read was zero offset Lo
 
@@ -702,15 +662,15 @@ void ReceiveUdp()
 
                 steerSettings.AckermanFix = (float)autoSteerUdpData[12] * 0.01;
 
-                
+
                 Serial.printf("Stearsettnigs data new counts %f\r\n", steerSettings.steerSensorCounts );
                 Serial.printf("steerSettings.wasOffset new counts %d\r\n", steerSettings.wasOffset );
                 Serial.printf(" Kp %d \r\n", steerSettings.Kp);
                 Serial.printf(" lowPWM %d \r\n", steerSettings.lowPWM);
                 Serial.printf(" minPWM %d \r\n", steerSettings.minPWM);
                 Serial.printf(" highPWM %d\r\n", steerSettings.highPWM);
-                
-                
+
+
                 //crc
                 //autoSteerUdpData[13];
 
@@ -726,15 +686,15 @@ void ReceiveUdp()
             {
                 uint8_t sett = autoSteerUdpData[5]; //setting0
 
-                Serial.printf("Ster config received\r\n");
-                if (bitRead(sett, 0)) steerConfig.InvertWAS = 1; else steerConfig.InvertWAS = 0;
+                Serial.printf("Steer config received, %d, %d, %d, %d\r\n", autoSteerUdpData[5], autoSteerUdpData[6], autoSteerUdpData[7], autoSteerUdpData[8] );
+                if (bitRead(sett, 0)) steerConfig.InvertWAS = 1; else steerConfig.InvertWAS = 0;                        // AG invert WAS
                 if (bitRead(sett, 1)) steerConfig.IsRelayActiveHigh = 1; else steerConfig.IsRelayActiveHigh = 0;
-                if (bitRead(sett, 2)) steerConfig.MotorDriveDirection = 1; else steerConfig.MotorDriveDirection = 0;
+                if (bitRead(sett, 2)) steerConfig.MotorDriveDirection = 1; else steerConfig.MotorDriveDirection = 0;    //AG Invert Motor Direction
                 if (bitRead(sett, 3)) steerConfig.SingleInputWAS = 1; else steerConfig.SingleInputWAS = 0;
                 if (bitRead(sett, 4)) steerConfig.CytronDriver = 1; else steerConfig.CytronDriver = 0;
                 if (bitRead(sett, 5)) steerConfig.SteerSwitch = 1; else steerConfig.SteerSwitch = 0;
                 if (bitRead(sett, 6)) steerConfig.SteerButton = 1; else steerConfig.SteerButton = 0;
-                if (bitRead(sett, 7)) steerConfig.ShaftEncoder = 1; else steerConfig.ShaftEncoder = 0;
+                if (bitRead(sett, 7)) steerConfig.ShaftEncoder = 1; else steerConfig.ShaftEncoder = 0;      // AG setting je to Turn Sensor
 
                 steerConfig.PulseCountMax = autoSteerUdpData[6];
 
@@ -774,7 +734,7 @@ void ReceiveUdp()
                 }
                 if(useBNO08xRVC)
                 {
-                  SendUdp(helloFromIMU, sizeof(helloFromIMU), Eth_ipDestination, portDestination); 
+                  SendUdp(helloFromIMU, sizeof(helloFromIMU), Eth_ipDestination, portDestination);
                 }
 
                 if(useMachine)
@@ -791,7 +751,7 @@ void ReceiveUdp()
               networkAddress.ipOne = autoSteerUdpData[7];
               networkAddress.ipTwo = autoSteerUdpData[8];
               networkAddress.ipThree = autoSteerUdpData[9];
-        
+
               //save in EEPROM and restart
               EEPROM.put(EE_ADDR_NETWORK, networkAddress);
               SCB_AIRCR = 0x05FA0004; //Teensy Reset
@@ -820,7 +780,7 @@ void ReceiveUdp()
 
                     //hello from AgIO
                     uint8_t scanReply[] = { 128, 129, Eth_myip[3], 203, 7,
-                        Eth_myip[0], Eth_myip[1], Eth_myip[2], Eth_myip[3], 
+                        Eth_myip[0], Eth_myip[1], Eth_myip[2], Eth_myip[3],
                         rem_ip[0],rem_ip[1],rem_ip[2], 23 };
 
                     //checksum
