@@ -1,8 +1,8 @@
     //Machine Control - Brian Tee - Cut and paste from everywhere
 
 
-    
-   
+
+
     //-----------------------------------------------------------------------------------------------
 
 /********************************************************************************
@@ -10,7 +10,7 @@
  ********************************************************************************/
 #include <stdint.h>
 #include "Machine_UDP.h"
-#include <EEPROM.h> 
+#include <EEPROM.h>
 #include <Wire.h>
 #include "Arduino.h"
 #include "global.h"
@@ -19,7 +19,7 @@
 
 /********************************************************************************
  * DEFINITIONS, ENUMS, STRUCTURES AND TYPEDEFS
- ********************************************************************************/     
+ ********************************************************************************/
 
 typedef struct HydLiftState
 {
@@ -30,7 +30,7 @@ typedef struct HydLiftState
 /********************************************************************************
  * VARIABLE DECLARATIONS
  ********************************************************************************/
-//Variables for config - 0 is false  
+//Variables for config - 0 is false
 struct Config {
     uint8_t raiseTime = 2;
     uint8_t lowerTime = 4;
@@ -50,9 +50,9 @@ bool TramLineL, TramLineR;
 uint16_t SectionState;      // each bit means one of 16 section
 hydLiftState_t HydraulicLift;
 
-/* Functions as below assigned to pins */   
+/* Functions as below assigned to pins */
 // define pins to available for Section controls listed in GUI as Pin 1 .. Pin24 which is index 0..23
-const uint8_t hwPinAsignment [] = {GP_RE1,GP_RE2,GP_RE3,GP_RE4};   //so pin1 will be tennsy 
+const uint8_t hwPinAsignment [] = {GP_RE1,GP_RE2,GP_RE3,GP_RE4};   //so pin1 will be tennsy
 const uint8_t hwPinTramAsignment [] = {40,41};
 
 
@@ -91,18 +91,18 @@ void Machine_Init(void)
     pinMode(hwPinTramAsignment[1], OUTPUT);
     uint16_t ee_ready;
     EEPROM.get(EE_ADDR_SECTI_HEAD, ee_ready);              // read identifier
-    
+
     if (ee_ready == EEP_Ident)
     {
-        EEPROM.get(EE_ADDR_SECTI, PinToSection);   
+        EEPROM.get(EE_ADDR_SECTI, PinToSection);
         EEPROM.get(EE_ADDR_AOGCFG, aogConfig);
         Serial.printf(" Machine EEPROM OK \r\n");
     }
-}    
+}
 
 void Machine_setup()
-{        
-    //register to port 8888    
+{
+    //register to port 8888
     //set the pins to be outputs (pin numbers)
     pinMode(4, OUTPUT);
     pinMode(5, OUTPUT);
@@ -117,13 +117,13 @@ void Machine_setup()
 /// @brief Call witn 50ms   #define MACHINE_LOOP_PERIOD_MS      100
 void Machine_loop(void)
 {
-    
+
     Machine_ProcessRelays();
 }
 
-void Machine_ProcessData(uint8_t * udpData)     // 239 Machine data, goes from AOG every 10ms 
-{        
-    
+void Machine_ProcessData(uint8_t * udpData)     // 239 Machine data, goes from AOG every 10ms
+{
+
     //uTurn = udpData[5];
     //uint8_t localGpsSpeed = (float)udpData[6];//actual speed times 10
 
@@ -132,13 +132,13 @@ void Machine_ProcessData(uint8_t * udpData)     // 239 Machine data, goes from A
 
     // From AIO goes 16 bit status of sections
     uint16_t sectionStates = ((uint16_t)udpData[12] << 8 ) | (uint16_t)udpData[11];          // read relay control from AgOpenGPS sc1to8 = 11;sc9to16 = 12;
-    
+
     // SerialUSB.printf("Data 239 mchine");
     // for (uint8_t i=7;i < 25; i++)
     // {
     //     Serial.printf("%3d, ", udpData[i]);
     // }
-    
+
     // SerialUSB.printf("\r\n");
 
 
@@ -147,7 +147,7 @@ void Machine_ProcessData(uint8_t * udpData)     // 239 Machine data, goes from A
         tramline = 255 - tramline;
         sectionStates = ~sectionStates;
     }
-  
+
 
     // Fill global variables
     TramLineR = tramline & 0x01;
@@ -156,31 +156,31 @@ void Machine_ProcessData(uint8_t * udpData)     // 239 Machine data, goes from A
 
     if ( hydLift != HydraulicLift.LiftLastState)
     {
-        HydraulicLift.LiftLastState = hydLift;    
+        HydraulicLift.LiftLastState = hydLift;
         switch (hydLift)
-        {                
+        {
         case 1: //lower
             HydraulicLift.timerLovering = aogConfig.lowerTime * 5;
-            break;                
+            break;
         case 2: //raise
             HydraulicLift.timerRising = aogConfig.raiseTime * 5;
             break;
-        default: 
+        default:
         break;
         }
     }
 }
 
 /* Trigger is in APP interface by machine module */
-void Machine_ProcessConfig(uint8_t * udpData)   // PGN - 238 - EE - goes when Machine module setup- 
+void Machine_ProcessConfig(uint8_t * udpData)   // PGN - 238 - EE - goes when Machine module setup-
 {
     aogConfig.raiseTime = udpData[5];
     aogConfig.lowerTime = udpData[6];
     aogConfig.enableToolLift = udpData[7];
-    //set1 
-    uint8_t sett = udpData[8];  //setting0     
+    //set1
+    uint8_t sett = udpData[8];  //setting0
     if (bitRead(sett, 0)) aogConfig.isRelayActiveHigh = 1; else aogConfig.isRelayActiveHigh = 0;
-    
+
     aogConfig.user1 = udpData[9];   // in AOG are 4 user values to send heree.g some specific config of teensy
     aogConfig.user2 = udpData[10];
     aogConfig.user3 = udpData[11];
@@ -191,8 +191,8 @@ void Machine_ProcessConfig(uint8_t * udpData)   // PGN - 238 - EE - goes when Ma
     Serial.printf("Process AOG config, U1:%d; U2:%d; U3:%d; U4:%d \r\n", aogConfig.user1,aogConfig.user2,aogConfig.user3,aogConfig.user4 );
 }
 
-void Machine_ProcessRelayConfig(uint8_t * udpData)  // 236 machine Relay Pin Settings 
-{            
+void Machine_ProcessRelayConfig(uint8_t * udpData)  // 236 machine Relay Pin Settings
+{
     //assignment pin to section number. E.g in PinToSection[1] will be # 2 , section no 2
     // where then hast to be this PinToSection[1] assigned to some HW pin
     for (uint8_t i = 0; i < 24; i++)
@@ -202,26 +202,26 @@ void Machine_ProcessRelayConfig(uint8_t * udpData)  // 236 machine Relay Pin Set
     }
 
     //save in EEPROM and restart
-    EEPROM.put(EE_ADDR_SECTI_HEAD, EEP_Ident);    
+    EEPROM.put(EE_ADDR_SECTI_HEAD, EEP_Ident);
     EEPROM.put(EE_ADDR_SECTI, PinToSection);
 }
-    
-extern Switches_t ButtState;    
+
+extern Switches_t ButtState;
 /* HW write of relays*/
 void Machine_ProcessRelays(void)
-{     
-    static uint16_t sectionStateLast; 
+{
+    static uint16_t sectionStateLast;
     bool printChange = false;
-    // we need to assign variable of virtual pin to proper pin.  
+    // we need to assign variable of virtual pin to proper pin.
     // where hwPinAsignment [] = {33,36,37,13};   //are reap used pin #1 .. 24
     // when value is 0, like not assigned
 
     //if (PinToSection[0]) digitalWrite(hwPinAsignment[0], SectionState & (1 << (PinToSection[0] - 1)));    // do pinu 4 zapis hodnotu co prisla v Cfg Pinu 1
-    
+
     if (sectionStateLast != SectionState)
     {
         sectionStateLast = SectionState;
-        Serial.printf("Novy stav %d \r\n", SectionState);
+        Serial.printf("Sekce-Novy stav %d \r\n", SectionState);
         printChange = true;
     }
 
@@ -232,22 +232,22 @@ void Machine_ProcessRelays(void)
         if( PinToSection[pin] <= 16 )       // 16 sections, 0 not used
         {
             if ((aogConfig.user1 & UN1_WS_DIS_SEC) && (ButtState.workSwitch == 1))   // when is this feature allowed
-            { // not change section pins            
+            { // not change section pins
             }
             else
-            {   
+            {
                 digitalWrite(hwPinAsignment[pin], value );
-                if (printChange) Serial.printf("Zapisu na pin %d, hodnotu %d \r\n", hwPinAsignment[pin], value ? 0 : 1);
+                //if (printChange) Serial.printf("Zapisu na pin %d, hodnotu %d \r\n", hwPinAsignment[pin], value ? 0 : 1);
             }
-        }else 
+        }else
         {
-            Serial.printf("Spatna sekce %d\r\n", PinToSection[pin]);
+            Serial.printf("Sekce-Spatna sekce %d\r\n", PinToSection[pin]);
         }
     }
 
-    
+
 
     //digitalWrite(9, TramLineL);
     //digitalWrite(10, TramLineR);
-    
+
 }

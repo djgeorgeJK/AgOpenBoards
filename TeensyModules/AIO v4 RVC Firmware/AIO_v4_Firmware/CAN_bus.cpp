@@ -1,6 +1,6 @@
-  
-   
-    
+
+
+
 
 /********************************************************************************
  * INCLUDE DIRECTIVES
@@ -16,8 +16,8 @@
 
 /********************************************************************************
  * DEFINITIONS, ENUMS, STRUCTURES AND TYPEDEFS
- ********************************************************************************/     
-//  !! Set Brand via Service Tool (Serial Monitor) !! 
+ ********************************************************************************/
+//  !! Set Brand via Service Tool (Serial Monitor) !!
 //  0 = Claas (1E/30 Navagation Controller, 13/19 Steering Controller) - See Claas Notes on Service Tool Page
 //  1 = Valtra, Massey Fergerson (Standard Danfoss ISO 1C/28 Navagation Controller, 13/19 Steering Controller) Mccormick
 //  2 = CaseIH, New Holland (AA/170 Navagation Controller, 08/08 Steering Controller)
@@ -43,8 +43,8 @@ MCP2515 mcp2515(CAN_CS_PIN, 1000000); // CS, SPI speed, MOSI, MISO, SCK
 can_frame_t canMsg1 = {
     .can_id = 0x0C300840 | CAN_EFF_FLAG,
     .can_dlc = 2,
-    //.data = {0xFF, 0xFF, 0xFF, 0xFF, 0x12, 0xFF, 0xFF, 0xFF}    
-    .data = {0x80, 0x12}    
+    //.data = {0xFF, 0xFF, 0xFF, 0xFF, 0x12, 0xFF, 0xFF, 0xFF}
+    .data = {0x80, 0x12}
 };
 can_frame_t canMsg2 = {
     .can_id = 0x1CE68226 | CAN_EFF_FLAG,
@@ -54,13 +54,13 @@ can_frame_t canMsg2 = {
 };
 can_frame_t canMsgRx;
 
-static SeedingState_t seedingState = 
+static SeedingState_t seedingState =
 {
-    .leftSideActive = false, 
+    .leftSideActive = false,
     .rightSideActive = false,
     .seedMessageTimeout = CAN_SEED_TIMEOUT_MS
 };
-  
+
 /********************************************************************************
  * PRIVATE FUNCTION PROTOTYPES
  ********************************************************************************/
@@ -72,17 +72,17 @@ static SeedingState_t seedingState =
 void CanBus_Init(void)
 {
     Serial.println("CAN Start Init");
-    
+
     //pinMode(CAN_MISO_PIN, INPUT_PULLUP);
 
     //SPI.setClockDivider(SPI_CLOCK_DIV32);
     // SPI.begin();
     // SPI.beginTransaction(SPISettings(500000, MSBFIRST, SPI_MODE0));
-    mcp2515.reset();    
-    mcp2515.setBitrate(CAN_250KBPS, MCP_8MHZ);    
-      
+    mcp2515.reset();
+    mcp2515.setBitrate(CAN_250KBPS, MCP_8MHZ);
 
-    
+
+
 
     /* Chci cist zpravy:
      *  - 0x1ce68226   A8 29  nebo 2A je aktivni vysev leve , prave strany
@@ -104,7 +104,7 @@ void CanBus_Init(void)
 //#include <WDT_T4.h>
 //Watchdog_t4 wd;
 /// @brief Main CAN Bus Task to read and print any incoming messages
-/// @param  
+/// @param
 void CanBus_Task(void)
 {
     static bool oncePrint = false;
@@ -118,76 +118,76 @@ void CanBus_Task(void)
         seedingState.seedMessageTimeout -= CAN_TASK_PERIOD_MS;
         //Serial.printf("%d\r\n", seedingState.seedMessageTimeout);
     }
-    else    
+    else
     {
         seedingState.leftSideActive = false;
-        seedingState.rightSideActive = false;        
+        seedingState.rightSideActive = false;
         seedingState.seedMessageTimeout = CAN_SEED_TIMEOUT_MS;
-        Serial.printf("Mazu left right priznaky");
+        //Serial.printf("Mazu left right priznaky");
     }
-    
-    if (mcp2515.readMessage(&canMsgRx) == MCP2515::ERROR_OK) 
+
+    if (mcp2515.readMessage(&canMsgRx) == MCP2515::ERROR_OK)
     {
         canMsgRx.can_id &= CAN_EFF_MASK; // mask off the EFF/RTR/ERR flags
         Serial.printf("Id %X, dlc %X", canMsgRx.can_id, canMsgRx.can_dlc); // print ID and DLC
-        //Serial.printf("Zprava prijata ");         
-    
-        for (int i = 0; i<canMsgRx.can_dlc; i++)  
+        //Serial.printf("Zprava prijata ");
+
+        for (int i = 0; i<canMsgRx.can_dlc; i++)
         {  // print the data
-                Serial.printf("0x%X ",canMsgRx.data[i]);                 
-        }    
+                Serial.printf("0x%X ",canMsgRx.data[i]);
+        }
         Serial.println("");
 
 
-        // Can zprava xx68226 00 02 prijde kdyz se zmackne tlacitko na pnelu kverneland sej na miste 1D 
+        // Can zprava xx68226 00 02 prijde kdyz se zmackne tlacitko na pnelu kverneland sej na miste 1D
         //                    00 02 1F 01 74 01 05 ff  tlacitko vypnuti prave sekce a je vypla
         //                    00 02 1F 01 74 01 05 ff prijde taky kdyz je tlacitko zase zaple
         //                    00 01 1E 01 74 01 04 ff  prijde kdyz zmacknu tlasitko vypmuti leve pulky
         //             zkousel jsem tyto zpravy odeslat, ale nic se nedelo....
         if(canMsgRx.data[0] == 0x00 && canMsgRx.data[1] == 0x02)
         {
-            Serial.printf("Zmackle tlacitko\r\n");     
-            //seedingState.rightSideActive = true;      
-            //seedingState.seedMessageTimeout = CAN_SEED_TIMEOUT_MS; 
+            Serial.printf("Zmackle tlacitko\r\n");
+            //seedingState.rightSideActive = true;
+            //seedingState.seedMessageTimeout = CAN_SEED_TIMEOUT_MS;
         }
-        
+
         if(canMsgRx.data[0] == 0xA8)    // zprava na aktivni sekce
         {
             if(canMsgRx.data[1] == 0x2A)
             {
                 // right side active
                 seedingState.rightSideActive = true;
-                Serial.printf("Leva ON"); 
+                Serial.printf("Leva ON");
                 seedingState.seedMessageTimeout = CAN_SEED_TIMEOUT_MS;
             }
             else if (canMsgRx.data[1] == 0x29)
             {
                 // left side active
                 seedingState.leftSideActive = true;
-                Serial.printf("Prava ON"); 
+                Serial.printf("Prava ON");
                 seedingState.seedMessageTimeout = CAN_SEED_TIMEOUT_MS;
             }
         }
     }
-    
-    
+
+
     /*  Processing CLI */
-    if (Serial.available() > 0) 
+    if (Serial.available() > 0)
     {
-        char charIn = Serial.read();    
+        char charIn = Serial.read();
         if (charIn == 's')
         {
             mcp2515.sendMessage(&canMsg1);
             Serial.println("CAN message sent \r\n");
             canMsg1.data[0] ++;
-        }    
+        }
 
         if (charIn == 'd')
         {
-            
+
             mcp2515.sendMessage(&canMsg2);
             Serial.println("CAN message 2sent \r\n");
-        }   
+        }
 
 
 
@@ -195,28 +195,28 @@ void CanBus_Task(void)
         {
             uint8_t stat = mcp2515.getStatus();
             if(stat != 0)
-            { 
+            {
                 Serial.printf("Status je: %X\r\n", stat);
-            }          
-            
-        }    
+            }
+
+        }
 
         if (charIn == '2')
         {
             uint8_t stat = mcp2515.getRxStatus();
             Serial.printf("Rx Status je: %X\r\n", stat);
         }
-        
+
 
         if (charIn == 'r')
         {
-            Serial.printf("Rebooting...."); 
+            Serial.printf("Rebooting....");
             delay(800);
             //wdt_disable();
             //wdt_enable(WDTO_15MS);
-            
-            
-        
+
+
+
             //SCB_AIRCR = 0x05FA0004;  // Request system reset
             _reboot_Teensyduino_();
         }
@@ -227,14 +227,14 @@ void CanBus_Task(void)
 bool CanBus_IsLeftSideActive(void)
 {
     return seedingState.leftSideActive;
-}   
+}
 
 bool CanBus_IsRightSideActive(void)
 {
     return seedingState.rightSideActive;
-}  
+}
 
 bool CanBus_IsSeedingActive(void)
 {
     return (seedingState.rightSideActive) || (seedingState.leftSideActive);
-}  
+}
