@@ -237,7 +237,10 @@ void Machine_ProcessRelays(void)
             else
             {
                 digitalWrite(hwPinAsignment[pin], value );
-                //if (printChange) Serial.printf("Zapisu na pin %d, hodnotu %d \r\n", hwPinAsignment[pin], value ? 0 : 1);
+                if (printChange)
+                {
+                //Serial.printf("Zapisu na pin %d, hodnotu %d \r\n", hwPinAsignment[pin], value ? 0 : 1);
+                }
             }
         }else
         {

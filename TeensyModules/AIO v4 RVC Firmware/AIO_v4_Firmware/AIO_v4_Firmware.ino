@@ -32,20 +32,18 @@
     #define HwSerial    HardwareSerial
 #endif
 
-#define SerialAOG Serial                //AgIO USB conection
-#define SerialRTK Serial3               //RTK radio
-HardwareSerialIMXRT* SerialGPS = &Serial1;   //Main postion receiver (GGA)
-HardwareSerialIMXRT* SerialGPS2 = &Serial7;  //Dual heading receiver
-HardwareSerialIMXRT* SerialIMU = &Serial5;   //IMU BNO-085
+#define SerialAOG Serial                    // AgIO USB conection
+#define SerialRTK Serial3                   // RTK radio
+HardwareSerialIMXRT *SerialGPS = &Serial1;  // Main postion receiver (GGA)
+HardwareSerialIMXRT *SerialGPS2 = &Serial7; // Dual heading receiver
+HardwareSerialIMXRT *SerialIMU = &Serial5;  // IMU BNO-085
 
 // Baud rates
 const int32_t baudGPS = 460800;
-const int32_t baudRTK = 115200;     // most are using Xbee radios with default of 115200
+const int32_t baudRTK = 115200; // most are using Xbee radios with default of 115200
 
-#define ImuWire Wire        //SCL=19:A5 SDA=18:A4
+#define ImuWire         Wire // SCL=19:A5 SDA=18:A4
 #define RAD_TO_DEG_X_10 572.95779513082320876798154814105
-
-
 
 /*****************************************************************/
 
@@ -60,7 +58,7 @@ const int32_t baudRTK = 115200;     // most are using Xbee radios with default o
 #include <NativeEthernetUdp.h>
 #include "CAN_bus.h"
 
-//Roomba Vac mode for BNO085 and data
+// Roomba Vac mode for BNO085 and data
 BNO_rvc rvc = BNO_rvc();
 BNO_rvcData bnoData;
 elapsedMillis bnoTimer;
@@ -68,25 +66,16 @@ bool bnoTrigger = false;
 bool useBNO08xRVC = false;
 bool useMachine = true;
 
-ConfigIP_t networkAddress;   //3 bytes
-
+ConfigIP_t networkAddress; // 3 bytes
 
 byte CK_A = 0;
 byte CK_B = 0;
 
-typedef enum Remoteswitch   // mask
-{
-    RS_WORKING       = 0x01,         // H level activate Working mode
-    RS_STEERING      = 0x02,        // H level activate Steering mode
-    RS_REMOTE_SWITCH = 0x04,        // zatim nevim
-    RS_AUTOSTEER     = 0x08        // H level activate Autosteer mode
-}Remoteswitch_t;
 
-//Speed pulse output
+// Speed pulse output
 elapsedMillis speedPulseUpdateTimer = 0;
 
-
-//Used to set CPU speed
+// Used to set CPU speed
 extern "C" uint32_t set_arm_clock(uint32_t frequency); // required prototype
 
 bool useDual = false;
@@ -96,8 +85,8 @@ bool dualReadyRelPos = false;
 elapsedMillis GGAReadyTime = 10000;
 elapsedMillis EthernetCheck_msCounter = 1000;
 
-//Dual
-double headingcorr = 900;  //90deg heading correction (90deg*10)
+// Dual
+double headingcorr = 900; // 90deg heading correction (90deg*10)
 
 double baseline = 0;
 double rollDual = 0;
@@ -106,11 +95,11 @@ double heading = 0;
 
 byte ackPacket[72] = {0xB5, 0x62, 0x01, 0x3C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-uint8_t GPSrxbuffer[SERIAL_BUFFER_SIZE];    //Extra serial rx buffer
-uint8_t GPStxbuffer[SERIAL_BUFFER_SIZE];    //Extra serial tx buffer
-uint8_t GPS2rxbuffer[SERIAL_BUFFER_SIZE];   //Extra serial rx buffer
-uint8_t GPS2txbuffer[SERIAL_BUFFER_SIZE];   //Extra serial tx buffer
-uint8_t RTKrxbuffer[SERIAL_BUFFER_SIZE];    //Extra serial rx buffer
+uint8_t GPSrxbuffer[SERIAL_BUFFER_SIZE];  // Extra serial rx buffer
+uint8_t GPStxbuffer[SERIAL_BUFFER_SIZE];  // Extra serial tx buffer
+uint8_t GPS2rxbuffer[SERIAL_BUFFER_SIZE]; // Extra serial rx buffer
+uint8_t GPS2txbuffer[SERIAL_BUFFER_SIZE]; // Extra serial tx buffer
+uint8_t RTKrxbuffer[SERIAL_BUFFER_SIZE];  // Extra serial rx buffer
 
 /* A parser is declared with 3 handlers at most */
 NMEAParser<2> parser;
@@ -118,7 +107,7 @@ NMEAParser<2> parser;
 bool isTriggered = false;
 bool blink = false;
 
-bool Autosteer_running = true; //Auto set off in autosteer setup
+bool Autosteer_running = true; // Auto set off in autosteer setup
 
 float roll = 0;
 float pitch = 0;
@@ -130,23 +119,22 @@ void Read_GPS_FromSerial(void);
 void Process_RTK_FromRadio(void);
 void Process_RTK_FromUDP(void);
 
-
 // Setup procedure ------------------------
 void setup()
 {
-    delay(1000);                       //Small delay so serial can monitor start up
-    set_arm_clock(450000000);         //Set CPU speed to 150mhz
+    delay(1000);              // Small delay so serial can monitor start up
+    set_arm_clock(450000000); // Set CPU speed to 150mhz
     Serial.begin(115200);
     Serial.printf("CPU speed set to: %d\r\n", F_CPU_ACTUAL);
     Serial.printf("Firmware version %d.%d.%d Debug \r\n", FW_MAJ, FW_MIN, FW_PATCH);
 
-    //pinMode(GGAReceivedLED,         OUTPUT);
-    pinMode(Power_on_LED,           OUTPUT);
-    pinMode(Ethernet_Active_LED,    OUTPUT);
-    pinMode(GPSRED_LED,             OUTPUT);
-    //pinMode(GPSGREEN_LED,           OUTPUT);
-    pinMode(AUTOSTEER_STANDBY_LED,  OUTPUT);
-    pinMode(AUTOSTEER_ACTIVE_LED,   OUTPUT);
+    // pinMode(GGAReceivedLED,         OUTPUT);
+    pinMode(Power_on_LED, OUTPUT);
+    pinMode(Ethernet_Active_LED, OUTPUT);
+    pinMode(GPSRED_LED, OUTPUT);
+    // pinMode(GPSGREEN_LED,           OUTPUT);
+    pinMode(AUTOSTEER_STANDBY_LED, OUTPUT);
+    pinMode(AUTOSTEER_ACTIVE_LED, OUTPUT);
 
     // the dash means wildcard
     parser.setErrorHandler(errorHandler);
@@ -178,7 +166,6 @@ void setup()
     CanBus_Init();
     EthernetStart();
 
-
     SerialIMU->begin(115200);
     rvc.begin(SerialIMU);
 
@@ -186,7 +173,7 @@ void setup()
     Serial.println("\r\nChecking for serial BNO08x");
     while (rvcBnoTimer < 1000)
     {
-        //check if new bnoData
+        // check if new bnoData
         if (rvc.read(&bnoData))
         {
             useBNO08xRVC = true;
@@ -195,18 +182,19 @@ void setup()
             break;
         }
     }
-    if (!useBNO08xRVC)  Serial.println("No Serial BNO08x not Connected or Found");
+    if (!useBNO08xRVC)
+        Serial.println("No Serial BNO08x not Connected or Found");
 
-  Serial.println("\r\nEnd setup, waiting for GPS...\r\n");
-  Autosteer_running = true;
+    Serial.println("\r\nEnd setup, waiting for GPS...\r\n");
+    Autosteer_running = true;
 
-  int val = analogRead(A17);
-  Serial.printf("analog A17 is: %d\r\n", val);
+    int val = analogRead(A17);
+    Serial.printf("analog A17 is: %d\r\n", val);
 
-  Machine_Init();
-
+    Machine_Init();
 }
 
+/// @brief Main loop of project
 void loop()
 {
     Read_GPS_FromSerial();
@@ -223,44 +211,52 @@ void loop()
 
     Read_GPS_2_FromSerial();
 
-    //RVC BNO08x
-    if (rvc.read(&bnoData)) useBNO08xRVC = true;
+    // RVC BNO08x
+    if (rvc.read(&bnoData))
+        useBNO08xRVC = true;
 
     if (useBNO08xRVC && bnoTimer > 70 && bnoTrigger)
     {
         bnoTrigger = false;
-        imuHandler();   //Get IMU data ready
+        imuHandler(); // Get IMU data ready
     }
 
-    if (Autosteer_running) autosteerLoop();
-    else ReceiveUdp();
+    ReceiveUdp();
 
-    //GGA timeout, turn off GPS LED's etc
-    if (GGAReadyTime > 10000) //GGA age over 10sec
+    if (Autosteer_running)
     {
-        //digitalWrite(GPSRED_LED, LOW);
-        //digitalWrite(GPSGREEN_LED, LOW);
+        autosteerLoop();
+        gps_speed();
+    }
+
+
+
+    // GGA timeout, turn off GPS LED's etc
+    if (GGAReadyTime > 10000) // GGA age over 10sec
+    {
+        // digitalWrite(GPSRED_LED, LOW);
+        // digitalWrite(GPSGREEN_LED, LOW);
         useDual = false;
     }
 
     EthernetTask();
     TaskScheduler();
 
-}//End Loop
+} // End Loop
 
 //***************************************************************************
 //                          Private Functions                               *
 //***************************************************************************
 void Read_GPS_FromSerial(void)
-{   // Read incoming nmea from GPS
+{ // Read incoming nmea from GPS
     if (SerialGPS->available())
     {
         static bool printed = false;
         parser << SerialGPS->read();
-        if(!printed)
+        if (!printed)
         {
             Serial.println("GPS connected !!\r\n");
-            printed  = true;
+            printed = true;
         }
     }
 }
@@ -271,7 +267,7 @@ void Read_GPS_2_FromSerial(void)
     // If anything comes in SerialGPS2 RelPos data
     if (SerialGPS2->available())
     {
-        uint8_t incoming_char = SerialGPS2->read();  //Read RELPOSNED from F9P
+        uint8_t incoming_char = SerialGPS2->read(); // Read RELPOSNED from F9P
 
         // Just increase the byte counter for the first 3 bytes
         if (relposnedByteCount < 4 && incoming_char == ackPacket[relposnedByteCount])
@@ -295,8 +291,8 @@ void Read_GPS_2_FromSerial(void)
     {
         if (calcChecksum())
         {
-            //if(deBug) Serial.println("RelPos Message Recived");
-            digitalWrite(GPSRED_LED, LOW);   //Turn red GPS LED OFF (we are now in dual mode so green LED)
+            // if(deBug) Serial.println("RelPos Message Recived");
+            digitalWrite(GPSRED_LED, LOW); // Turn red GPS LED OFF (we are now in dual mode so green LED)
             useDual = true;
             relPosDecode();
         }
@@ -304,19 +300,14 @@ void Read_GPS_2_FromSerial(void)
     }
 }
 
-
-
-
- void Process_RTK_FromRadio(void)
- {  // Check for RTK via Radio
+void Process_RTK_FromRadio(void)
+{ // Check for RTK via Radio
     if (SerialRTK.available())
     {
         SerialGPS->write(SerialRTK.read());
         Serial.println(" Reading SerialRTK UART\r\n");
     }
- }
-
-
+}
 
 void TaskScheduler(void)
 {
@@ -324,21 +315,20 @@ void TaskScheduler(void)
 
     if (scheduler_last_cntr != systick_millis_count)
     {
-        if ((systick_millis_count % 1000) == 0)     // each second
+        if ((systick_millis_count % 1000) == 0) // each second
         {
-            //int val = analogRead(AN_POT_MY);
-            //Serial.printf("analog A10 is: %d\r\n", val);
-            //Serial.printf("1 sec print\r\n");
-
+            // int val = analogRead(AN_POT_MY);
+            // Serial.printf("analog A10 is: %d\r\n", val);
+            // Serial.printf("1 sec print\r\n");
         }
         scheduler_last_cntr = systick_millis_count;
 
-        if ((systick_millis_count % 2) == 0)    // each 2 ms
+        if ((systick_millis_count % 2) == 0) // each 2 ms
         {
-            //Buttons_Sample();
+            // Buttons_Sample();
         }
 
-        if ((systick_millis_count % MACHINE_LOOP_PERIOD_MS) == 0)    // each 100 ms
+        if ((systick_millis_count % MACHINE_LOOP_PERIOD_MS) == 0) // each 100 ms
         {
             Machine_loop();
             CanBus_Task();
@@ -346,17 +336,16 @@ void TaskScheduler(void)
     }
 }
 
-
 bool calcChecksum()
 {
-  CK_A = 0;
-  CK_B = 0;
+    CK_A = 0;
+    CK_B = 0;
 
-  for (int i = 2; i < 70; i++)
-  {
-    CK_A = CK_A + ackPacket[i];
-    CK_B = CK_B + CK_A;
-  }
+    for (int i = 2; i < 70; i++)
+    {
+        CK_A = CK_A + ackPacket[i];
+        CK_B = CK_B + CK_A;
+    }
 
-  return (CK_A == ackPacket[70] && CK_B == ackPacket[71]);
+    return (CK_A == ackPacket[70] && CK_B == ackPacket[71]);
 }
