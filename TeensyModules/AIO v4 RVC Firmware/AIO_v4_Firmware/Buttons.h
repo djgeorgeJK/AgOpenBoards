@@ -1,7 +1,7 @@
 #ifndef __BUTTONS_H_GUARD__
 #define __BUTTONS_H_GUARD__
 
-typedef enum Remoteswitch // mask
+typedef enum Remoteswitch // mask to send info to display
 {
     RS_WORKING = 0x01,       // H level activate Working mode
     RS_STEERING = 0x02,      // H level activate Steering mode

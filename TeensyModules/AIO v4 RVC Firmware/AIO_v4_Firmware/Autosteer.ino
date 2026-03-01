@@ -31,10 +31,10 @@ float outputWAS[] = {-50.00, -45.0, -40.0, -35.0, -30.0, -25.0, -20.0, -15.0, -1
 #define MC_DIRECTION_PIN 2
 
 // PWM pin for Cytron PWM, Left PWM for IBT2
-#define MC_PWM_1 3
+#define MC_PWM_1            3
 
 // Not Connected for Cytron, Right PWM for IBT2
-#define MC_PWM_2LEFT 4
+#define MC_PWM_2LEFT        4
 
 #define CONST_180_DIVIDED_BY_PI 57.2957795130823
 
@@ -380,8 +380,8 @@ void autosteerLoop()
 
     ButtState.remoteSwitch = digitalRead(REMOTE_PIN);
     uint8_t udpSwitchMask = 0;
-    // udpSwitchMask |= ((ButtState.workSwitch != false) || (CanBus_IsSeedingActive() != false)) ? ((uint8_t)RS_WORKING) : 0u;
-    udpSwitchMask |= ((CanBus_IsSeedingActive() != false)) ? ((uint8_t)RS_WORKING) : 0u;
+    udpSwitchMask |= ((ButtState.workSwitch != false) || (CanBus_IsSeedingActive() != false)) ? ((uint8_t)RS_WORKING) : 0u;
+    // only debug udpSwitchMask |= ((CanBus_IsSeedingActive() != false)) ? ((uint8_t)RS_WORKING) : 0u;
     udpSwitchMask |= (ButtState.remoteSwitch != 0) ? (RS_REMOTE_SWITCH) : 0; // put remote in bit 2
     udpSwitchMask |= (ButtState.steerSwitch != 0) ? (RS_STEERING) : 0;       // put steerswitch status in bit 1 position
 

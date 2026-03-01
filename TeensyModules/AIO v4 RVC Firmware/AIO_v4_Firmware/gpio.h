@@ -5,7 +5,7 @@
 #define GGAReceivedLED          13      //Teensy onboard LED
 #define Power_on_LED            5       //Red
 #define Ethernet_Active_LED     6       //Green
-#define GPSRED_LED              31       //Red (Flashing = NO IMU or Dual, ON = GPS fix with IMU)
+#define GPSRED_LED              3       //Red (Flashing = NO IMU or Dual, ON = GPS fix with IMU)
 #define GPSGREEN_LED            50      //Green (Flashing = Dual bad, ON = Dual good)
 #define AUTOSTEER_STANDBY_LED   50      //Red
 #define AUTOSTEER_ACTIVE_LED    50      //Green
