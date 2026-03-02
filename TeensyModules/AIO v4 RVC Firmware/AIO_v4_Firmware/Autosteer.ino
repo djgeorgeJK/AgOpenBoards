@@ -74,9 +74,10 @@ uint8_t helloFromIMU[] = {128, 129, 121, 121, 5, 0, 0, 0, 0, 0, 71};
 uint8_t helloFromAutoSteer[] = {0x80, 0x81, 126, 126, 5, 0, 0, 0, 0, 0, 71};
 int16_t helloSteerPosition = 0;
 
-uint8_t helloFromMachine[] = {128, 129, 123, 123, 5, 0, 0, 0, 0, 0, 71};
-
+//uint8_t helloFromMachine[] = {128, 129, 123, 123, 5, 0, 0, 0, 0, 0, 71};
+uint8_t helloFromMachine[] = {0x80, 0x81, 0x7B, 0x7B, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x47};
 // fromAutoSteerData FD 253 - ActualSteerAngle*100 -5,6, SwitchByte-7, pwmDisplay-8
+
 uint8_t PGN_253[] = {0x80, 0x81, 126, 0xFD, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0xCC};
 int8_t PGN_253_Size = sizeof(PGN_253) - 1;
 
@@ -157,7 +158,7 @@ struct Setup
     uint8_t CurrentSensor = 0;
     uint8_t PulseCountMax = 5;
     uint8_t IsDanfoss = 0;
-    uint8_t IsUseY_Axis = 0; // Set to 0 to use X Axis, 1 to use Y avis
+    uint8_t IsUseY_Axis = 1; // Set to 0 to use X Axis, 1 to use Y avis
 };
 Setup steerConfig; // 13 bytes
 
@@ -530,7 +531,28 @@ void gps_speed(void)
 
 extern EthernetUDP Eth_udpAutoSteer;
 extern bool useBNO08xRVC;
-// UDP Receive
+// UDP Receive and transmit
+/* Charakterizace dat kdyz prijdou
+     Bajty   0  1  2  3  4  5  6  7  8  9 10 11 12`
+ *   Header 80 81 7f
+ *                   FE - 254 asi PGN paket
+ *                   FC - 252 Steer settings - struct steerSettings
+ *                   FB - 251 Steer Config   - struct steerConfig
+ *                   CB - 200  Hello from AgIO
+ *                              kdyz jsou aktovni ostatni moduly tak posle:   helloFromAutoSteer, helloFromIMU     ,helloFromMachine
+ *                      7F - 127 Hello from machine
+ *                      7E - 126 Hello from autosteer
+ *                      7D - 125 Hello from IMU - sent on power up
+ *                      7C - 124 Hello from GPS - sent on power up
+ *                   CE - 201
+ *                      - 239 Machine data - sent from AOG every 10ms, PGN 239 in AOG
+ *                      - 238
+ *                      - 236
+ *                      - 202
+ *                   7B - 123 Machine data - sent from AOG every 10ms, PGN 239 in AOG
+ *                  7A - 122 Steer Data 2 - sent from autosteer to AOG, PGN 250 in AOG, for pressure sensor, current sensor, etc
+ *
+ *  *               */
 void ReceiveUdp()
 {
     uint16_t len = Eth_udpAutoSteer.parsePacket();

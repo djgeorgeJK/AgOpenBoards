@@ -1,6 +1,10 @@
 #ifndef __GLOBAL_GUARD__
 #define __GLOBAL_GUARD__
 
+#define BOARD_01_2026_v1_3
+// jinak je rucne pajena deska
+
+
 //Status LED's
 #define GGAReceivedLED          13      //Teensy onboard LED
 #define Power_on_LED            5       //Red
