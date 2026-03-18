@@ -70,8 +70,9 @@ const uint16_t WATCHDOG_FORCE_VALUE = WATCHDOG_THRESHOLD + 2; // Should be great
 uint8_t watchdogTimer = WATCHDOG_FORCE_VALUE;
 
 // Heart beat hello AgIO
-uint8_t helloFromIMU[] = {128, 129, 121, 121, 5, 0, 0, 0, 0, 0, 71};
-uint8_t helloFromAutoSteer[] = {0x80, 0x81, 126, 126, 5, 0, 0, 0, 0, 0, 71};
+uint8_t helloFromIMU[] = {128, 129, 121, 121, 5, 1, 2, 3, 4, 5, 71};
+                      // 0x80,0x81,0x79,0x79,0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x47
+uint8_t helloFromAutoSteer[] = {0x80, 0x81, 126, 126, 5, 0, 0, 0, 0, 0, 71}; // bytes 5-9 are data
 int16_t helloSteerPosition = 0;
 
 //uint8_t helloFromMachine[] = {128, 129, 123, 123, 5, 0, 0, 0, 0, 0, 71};
@@ -531,6 +532,8 @@ void gps_speed(void)
 
 extern EthernetUDP Eth_udpAutoSteer;
 extern bool useBNO08xRVC;
+#define UDP_AGIO_HEADER_B0B1         0x80, 0x81     // header for byte 0 and 1
+#define UDP_MACHINE_HEADER_B3        0x7B           // byte 3 for machine data
 // UDP Receive and transmit
 /* Charakterizace dat kdyz prijdou
      Bajty   0  1  2  3  4  5  6  7  8  9 10 11 12`
@@ -538,19 +541,20 @@ extern bool useBNO08xRVC;
  *                   FE - 254 asi PGN paket
  *                   FC - 252 Steer settings - struct steerSettings
  *                   FB - 251 Steer Config   - struct steerConfig
- *                   CB - 200  Hello from AgIO
+ *                   CB - 200  Hello from AgIO  ++ dota z PC na hello 
  *                              kdyz jsou aktovni ostatni moduly tak posle:   helloFromAutoSteer, helloFromIMU     ,helloFromMachine
- *                      7F - 127 Hello from machine
+ *                   v odpovedi je ale pak byte 2 
+ *                     7F - 127 Hello from machine
  *                      7E - 126 Hello from autosteer
  *                      7D - 125 Hello from IMU - sent on power up
  *                      7C - 124 Hello from GPS - sent on power up
- *                   CE - 201
- *                      - 239 Machine data - sent from AOG every 10ms, PGN 239 in AOG
- *                      - 238
- *                      - 236
- *                      - 202
+ *                   CE - 201 - networkAddress
+ *                      - 239 - Machine_ProcessData
+ *                      - 238 - Machine_ProcessConfig
+ *                      - 236 - Machine_ProcessRelayConfig
+ *                      - 202 - whoami
  *                   7B - 123 Machine data - sent from AOG every 10ms, PGN 239 in AOG
- *                  7A - 122 Steer Data 2 - sent from autosteer to AOG, PGN 250 in AOG, for pressure sensor, current sensor, etc
+ *                   7A - 122 Steer Data 2 - sent from autosteer to AOG, PGN 250 in AOG, for pressure sensor, current sensor, etc
  *
  *  *               */
 void ReceiveUdp()
