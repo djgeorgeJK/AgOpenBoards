@@ -6,7 +6,7 @@
 
 
 //Status LED's
-#define GGAReceivedLED          13      //Teensy onboard LED
+#define GGAReceivedLED          13      //Teensy onboard LED - used now for CAN
 #define Power_on_LED            5       //Red
 #define Ethernet_Active_LED     6       //Green
 #define GPSRED_LED              3       //Red (Flashing = NO IMU or Dual, ON = GPS fix with IMU)
@@ -53,6 +53,8 @@
 #define CAN_SCK_PIN     13
 #define CAN_CS_PIN      10
 
+#define CAN_INT2      15
+#define CAN_INT1      14
 
 
 #endif //__GLOBAL_GUARD__

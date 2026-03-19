@@ -382,7 +382,7 @@ void autosteerLoop()
 
     ButtState.remoteSwitch = digitalRead(REMOTE_PIN);
     uint8_t udpSwitchMask = 0;
-    udpSwitchMask |= ((ButtState.workSwitch != false) || (CanBus_IsSeedingActive() != false)) ? ((uint8_t)RS_WORKING) : 0u;
+    udpSwitchMask |= ((ButtState.workSwitch == false) || (CanBus_IsSeedingActive() != false)) ? ((uint8_t)RS_WORKING) : 0u;
     // only debug udpSwitchMask |= ((CanBus_IsSeedingActive() != false)) ? ((uint8_t)RS_WORKING) : 0u;
     udpSwitchMask |= (ButtState.remoteSwitch != 0) ? (RS_REMOTE_SWITCH) : 0; // put remote in bit 2
     udpSwitchMask |= (ButtState.steerSwitch != 0) ? (RS_STEERING) : 0;       // put steerswitch status in bit 1 position
@@ -541,9 +541,9 @@ extern bool useBNO08xRVC;
  *                   FE - 254 asi PGN paket
  *                   FC - 252 Steer settings - struct steerSettings
  *                   FB - 251 Steer Config   - struct steerConfig
- *                   CB - 200  Hello from AgIO  ++ dota z PC na hello 
+ *                   CB - 200  Hello from AgIO  ++ dota z PC na hello
  *                              kdyz jsou aktovni ostatni moduly tak posle:   helloFromAutoSteer, helloFromIMU     ,helloFromMachine
- *                   v odpovedi je ale pak byte 2 
+ *                   v odpovedi je ale pak byte 2
  *                     7F - 127 Hello from machine
  *                      7E - 126 Hello from autosteer
  *                      7D - 125 Hello from IMU - sent on power up
@@ -829,6 +829,10 @@ void ReceiveUdp()
         }
     } // end if 80 81 7F
 }
+
+/****************************************************************************************************/
+/**                         Local functions                                                        **/
+/****************************************************************************************************/
 
 #ifdef ARDUINO_TEENSY41
 void SendUdp(uint8_t *data, uint8_t datalen, IPAddress dip, uint16_t dport)

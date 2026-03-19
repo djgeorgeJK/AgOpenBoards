@@ -177,7 +177,7 @@ void setup()
         if (rvc.read(&bnoData))
         {
             useBNO08xRVC = true;
-            Serial.println("Serial BNO08x Good To Go :-)");
+            Serial.printf("Serial BNO08x Good To Go. X:%d, Y:%d, Z:%d\r\n", bnoData.yawX10, bnoData.pitchX10, bnoData.rollX10);
             imuHandler();
             break;
         }

@@ -28,7 +28,7 @@
 //  7 = AgOpenGPS - Remote CAN/PWM module (1C/28 Navagation Controller, 13/19 Steering Controller)
 
 #define CAN_TASK_PERIOD_MS      100u
-#define CAN_SEED_TIMEOUT_MS     2000u
+#define CAN_SEED_TIMEOUT_MS     900u
 
 typedef struct SeedingState
 {
@@ -51,6 +51,8 @@ can_frame_t canMsg2 = {
     .can_dlc = 8,
     .data = { 0x00, 0x02, 0x1F, 0x01, 0x74, 0x01, 0x05, 0xFF }
        //      00   02     1F    01    74    01    05    ff
+    //.data = { 0x00, 0x02, 0x1E, 0x01, 0x74, 0x01, 0x04, 0xFF }
+
 };
 can_frame_t canMsgRx;
 
@@ -58,7 +60,7 @@ static SeedingState_t seedingState =
 {
     .leftSideActive = false,
     .rightSideActive = false,
-    .seedMessageTimeout = CAN_SEED_TIMEOUT_MS
+    .seedMessageTimeout = 0
 };
 
 /********************************************************************************
@@ -74,6 +76,8 @@ void CanBus_Init(void)
     Serial.println("CAN Start Init");
 
     //pinMode(CAN_MISO_PIN, INPUT_PULLUP);
+    pinMode(CAN_INT1, INPUT_PULLUP);
+    pinMode(CAN_INT2, INPUT_PULLUP);
 
     //SPI.setClockDivider(SPI_CLOCK_DIV32);
     // SPI.begin();
@@ -122,26 +126,26 @@ void CanBus_Task(void)
     {
         seedingState.leftSideActive = false;
         seedingState.rightSideActive = false;
-        seedingState.seedMessageTimeout = CAN_SEED_TIMEOUT_MS;
+        //seedingState.seedMessageTimeout = CAN_SEED_TIMEOUT_MS;
         //Serial.printf("Mazu left right priznaky");
     }
 
     if (mcp2515.readMessage(&canMsgRx) == MCP2515::ERROR_OK)
     {
         canMsgRx.can_id &= CAN_EFF_MASK; // mask off the EFF/RTR/ERR flags
-        Serial.printf("Id %X, dlc %X", canMsgRx.can_id, canMsgRx.can_dlc); // print ID and DLC
         //Serial.printf("Zprava prijata ");
+        //Serial.printf("Id %X, dlc %X", canMsgRx.can_id, canMsgRx.can_dlc); // print ID and DLC
 
-        for (int i = 0; i<canMsgRx.can_dlc; i++)
-        {  // print the data
-                Serial.printf("0x%X ",canMsgRx.data[i]);
-        }
-        Serial.println("");
+        // for (int i = 0; i<canMsgRx.can_dlc; i++)
+        // {  // print the data
+        //         Serial.printf("0x%X ",canMsgRx.data[i]);
+        // }
+        // Serial.println("");
 
 
         // Can zprava xx68226 00 02 prijde kdyz se zmackne tlacitko na pnelu kverneland sej na miste 1D
-        //                    00 02 1F 01 74 01 05 ff  tlacitko vypnuti prave sekce a je vypla
-        //                    00 02 1F 01 74 01 05 ff prijde taky kdyz je tlacitko zase zaple
+
+        //                    00 02 1F 01 74 01 05 ff prijde kdyz zmacknu tlacitko prave pulky je to toggle
         //                    00 01 1E 01 74 01 04 ff  prijde kdyz zmacknu tlasitko vypmuti leve pulky
         //             zkousel jsem tyto zpravy odeslat, ale nic se nedelo....
         if(canMsgRx.data[0] == 0x00 && canMsgRx.data[1] == 0x02)
@@ -157,14 +161,14 @@ void CanBus_Task(void)
             {
                 // right side active
                 seedingState.rightSideActive = true;
-                Serial.printf("Leva ON");
+                Serial.printf("Leva ON\r\n");
                 seedingState.seedMessageTimeout = CAN_SEED_TIMEOUT_MS;
             }
             else if (canMsgRx.data[1] == 0x29)
             {
                 // left side active
                 seedingState.leftSideActive = true;
-                Serial.printf("Prava ON");
+                Serial.printf("Prava ON\r\n");
                 seedingState.seedMessageTimeout = CAN_SEED_TIMEOUT_MS;
             }
         }
