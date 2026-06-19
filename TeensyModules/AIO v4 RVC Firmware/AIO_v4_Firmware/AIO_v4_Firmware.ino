@@ -25,6 +25,9 @@
 // Serial 2 In RTCM
 
 /************************* User Settings *************************/
+#define GPS_SIMULATE_GPS_BOARD
+//#define GPC_ALLOW_GPS_2
+
 // Serial Ports
 #ifdef PLATFORMIO
     #define HwSerial    HardwareSerialIMXRT
@@ -35,7 +38,9 @@
 #define SerialAOG Serial                    // AgIO USB conection
 #define SerialRTK Serial3                   // RTK radio
 HardwareSerialIMXRT *SerialGPS = &Serial1;  // Main postion receiver (GGA)
-HardwareSerialIMXRT *SerialGPS2 = &Serial7; // Dual heading receiver
+#ifdef GPC_ALLOW_GPS_2
+    HardwareSerialIMXRT *SerialGPS2 = &Serial7; // Dual heading receiver
+#endif
 HardwareSerialIMXRT *SerialIMU = &Serial5;  // IMU BNO-085
 
 // Baud rates
@@ -60,9 +65,7 @@ const int32_t baudRTK = 115200; // most are using Xbee radios with default of 11
 
 // Roomba Vac mode for BNO085 and data
 BNO_rvc rvc = BNO_rvc();
-BNO_rvcData bnoData;
-elapsedMillis bnoTimer;
-bool bnoTrigger = false;
+BNO_rvcData BnoData;
 bool useBNO08xRVC = false;
 bool useMachine = true;
 
@@ -153,9 +156,11 @@ void setup()
     SerialRTK.addMemoryForRead(RTKrxbuffer, SERIAL_BUFFER_SIZE);
 
     delay(10);
+#ifdef GPC_ALLOW_GPS_2
     SerialGPS2->begin(baudGPS);
     SerialGPS2->addMemoryForRead(GPS2rxbuffer, SERIAL_BUFFER_SIZE);
     SerialGPS2->addMemoryForWrite(GPS2txbuffer, SERIAL_BUFFER_SIZE);
+#endif
 
     Serial.println("SerialAOG, SerialRTK, SerialGPS and SerialGPS2 initialized");
 
@@ -171,14 +176,15 @@ void setup()
 
     static elapsedMillis rvcBnoTimer = 0;
     Serial.println("\r\nChecking for serial BNO08x");
+    BNO_rvcData bnoInitData;
     while (rvcBnoTimer < 1000)
     {
-        // check if new bnoData
-        if (rvc.read(&bnoData))
+        // check if new Data
+        if (rvc.read(&bnoInitData))
         {
             useBNO08xRVC = true;
-            Serial.printf("Serial BNO08x Good To Go. X:%d, Y:%d, Z:%d\r\n", bnoData.yawX10, bnoData.pitchX10, bnoData.rollX10);
-            imuHandler();
+            Serial.printf("Serial BNO08x Good To Go. X:%d, Y:%d, Z:%d\r\n", bnoInitData.pitchX10, bnoInitData.rollX10, bnoInitData.yawX10);
+            imuHandler(bnoInitData);
             break;
         }
     }
@@ -210,16 +216,6 @@ void loop()
     }
 
     Read_GPS_2_FromSerial();
-
-    // RVC BNO08x
-    if (rvc.read(&bnoData))
-        useBNO08xRVC = true;
-
-    if (useBNO08xRVC && bnoTimer > 70 && bnoTrigger)
-    {
-        bnoTrigger = false;
-        imuHandler(); // Get IMU data ready
-    }
 
     ReceiveUdp();
 
@@ -265,6 +261,7 @@ void Read_GPS_2_FromSerial(void)
 {
     static int relposnedByteCount = 0;
     // If anything comes in SerialGPS2 RelPos data
+#ifdef GPC_ALLOW_GPS_2
     if (SerialGPS2->available())
     {
         uint8_t incoming_char = SerialGPS2->read(); // Read RELPOSNED from F9P
@@ -286,6 +283,7 @@ void Read_GPS_2_FromSerial(void)
             relposnedByteCount = 0;
         }
     }
+#endif
     // Check the message when the buffer is full
     if (relposnedByteCount > 71)
     {
@@ -294,7 +292,7 @@ void Read_GPS_2_FromSerial(void)
             // if(deBug) Serial.println("RelPos Message Recived");
             digitalWrite(GPSRED_LED, LOW); // Turn red GPS LED OFF (we are now in dual mode so green LED)
             useDual = true;
-            relPosDecode();
+            relPosDecode(BnoData);
         }
         relposnedByteCount = 0;
     }
@@ -312,6 +310,7 @@ void Process_RTK_FromRadio(void)
 void TaskScheduler(void)
 {
     static uint32_t scheduler_last_cntr;
+    static BNO_rvcData bnoData;
 
     if (scheduler_last_cntr != systick_millis_count)
     {
@@ -332,7 +331,29 @@ void TaskScheduler(void)
         {
             Machine_loop();
             CanBus_Task();
+
+            // RVC BNO08x
+            if (rvc.read(&bnoData))
+             {
+                useBNO08xRVC = true;
+            }else
+            {
+                Serial.printf("Serial BNO08x not responding\r\n");
+                bnoData = { 0 };
+            }
+
+            if (useBNO08xRVC  )
+            {
+                imuHandler(bnoData); // Get IMU data ready
+            }
+            BnoData = bnoData;
         }
+
+        if ((systick_millis_count % 500) == 0) // each 500 msec
+        {
+            Serial.printf("Serial BNO08x:X:%d, Y:%d, Z:%d\r\n", bnoData.pitchX10, bnoData.rollX10, bnoData.yawX10);
+        }
+
     }
 }
 

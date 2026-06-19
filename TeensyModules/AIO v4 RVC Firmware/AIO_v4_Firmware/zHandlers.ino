@@ -20,11 +20,13 @@ char ageDGPS[10];
 char vtgHeading[12] = { };
 char speedKnots[10] = { };
 
-// IMU
-char imuHeading[6];
-char imuRoll[6];
-char imuPitch[6];
-char imuYawRate[6];
+// IMU - device angular data
+struct IMU_Data {
+    char heading[6];
+    char roll[6];
+    char pitch[6];
+    char yawRate[6];
+} imuData;
 
 extern EthernetUDP Eth_udpPAOGI;
 extern bool useBNO08xRVC ;
@@ -73,14 +75,11 @@ void GGA_Handler() //Rec'd GGA
     }
 
     blink = !blink;
-    bnoTrigger = true;
-    bnoTimer = 0;
 
     if (useDual)
     {
        dualReadyGGA = true;
     }
-
     else if (useBNO08xRVC)
     {
         BuildNmea();           //Build & send data GPS data to AgIO (Both Dual & Single)
@@ -91,19 +90,20 @@ void GGA_Handler() //Rec'd GGA
             //digitalWrite(GPSGREEN_LED, LOW);   //Make sure the Green LED is OFF
         }
     }
-
     else if (!useDual && !useBNO08xRVC)
     {
         digitalWrite(GPSRED_LED, blink);   //Flash red GPS LED, we have GGA but no IMU or dual
         digitalWrite(GPSGREEN_LED, LOW);   //Make sure the Green LED is OFF
-        itoa(65535, imuHeading, 10);       //65535 is max value to stop AgOpen using IMU in Panda
+        itoa(65535, imuData.heading, 10);       //65535 is max value to stop AgOpen using IMU in Panda
         BuildNmea();
     }
 
     GGAReadyTime = 0;   //Used for GGA timeout (LED's ETC)
 }
 
-void imuHandler()
+/// @brief  This function process tractor`s angles to strings
+/// @param bnoData
+void imuHandler(BNO_rvcData bnoData)
 {
     if (!useDual)
     {
@@ -111,24 +111,22 @@ void imuHandler()
         {
             float angVel;
 
-            // Fill rest of Panda Sentence - Heading
-            itoa(bnoData.yawX10, imuHeading, 10);
+            // Fill rest of Panda Sentence Z - Heading
+            itoa(bnoData.yawX10, imuData.heading, 10);       // 10 - as decimal, 2 as binary
 
             if (steerConfig.IsUseY_Axis)
             {
-                // the pitch x100
-                itoa(bnoData.pitchX10, imuPitch, 10);
-
-                // the roll x100
-                itoa(bnoData.rollX10, imuRoll, 10);
+                // the pitch X x100
+                itoa(bnoData.pitchX10, imuData.pitch, 10);
+                // the roll Y x100 - mainly used for autosteer correction- bocni naklon
+                itoa(bnoData.rollX10, imuData.roll, 10);
             }
             else
             {
-                // the pitch x100
-                itoa(bnoData.rollX10, imuPitch, 10);
-
-                // the roll x100
-                itoa(bnoData.pitchX10, imuRoll, 10);
+                // the pitch X x100
+                itoa(bnoData.rollX10, imuData.pitch, 10);
+                // the roll Y x100
+                itoa(bnoData.pitchX10, imuData.roll, 10);
             }
 
             //Serial.printf(rvc.angCounter);
@@ -148,21 +146,22 @@ void imuHandler()
                 bnoData.angVel = 0;
             }
 
-            itoa(bnoData.angVel, imuYawRate, 10);
+            itoa(bnoData.angVel, imuData.yawRate, 10);
             bnoData.angVel = 0;
         }
     }
-
     else
     {
         // the roll
-        dtostrf(rollDual, 4, 2, imuRoll);
+        dtostrf(rollDual, 4, 2, imuData.roll);
 
         // the Dual heading raw
-        dtostrf(heading, 4, 2, imuHeading);
+        dtostrf(heading, 4, 2, imuData.heading);
     }
 }
 
+/// @brief Builds a custom NMEA sentence ($PANDA or $PAOGI) containing GPS + IMU data and sends it via UDP to AgOpenGPS.
+///        NMEA (National Marine Electronics Association) is a standard text protocol for GPS/navigation data.
 void BuildNmea(void)
 {
     strcpy(nmea, "");
@@ -207,19 +206,19 @@ void BuildNmea(void)
     strcat(nmea, ",");
 
     //12
-    strcat(nmea, imuHeading);
+    strcat(nmea, imuData.heading);
     strcat(nmea, ",");
 
     //13
-    strcat(nmea, imuRoll);
+    strcat(nmea, imuData.roll);
     strcat(nmea, ",");
 
     //14
-    strcat(nmea, imuPitch);
+    strcat(nmea, imuData.pitch);
     strcat(nmea, ",");
 
     //15
-    strcat(nmea, imuYawRate);
+    strcat(nmea, imuData.yawRate);
 
     strcat(nmea, "*");
 

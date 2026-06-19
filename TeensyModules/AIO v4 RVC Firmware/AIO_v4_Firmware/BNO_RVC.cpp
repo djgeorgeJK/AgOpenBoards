@@ -14,38 +14,47 @@ bool BNO_rvc::begin(Stream *theSerial) {
   return true;
 }
 
-//read the 16 byte sentence AA AA Index Yaw Pitch Roll LSB MSB
+//read the 19 byte sentence: AA AA Index Yaw(2) Pitch(2) Roll(2) X(2) Y(2) Z(2) Reserved Checksum
+//Data arrives every 10ms. Called every 100ms, so drain buffer and use newest valid packet.
 bool BNO_rvc::read(BNO_rvcData* bnoData) {
     if (!bnoData) return false;
 
-    if (!serial_dev->available()) return false;
+    int avail = serial_dev->available();
+    if (avail < 19) return false;
 
-    if (serial_dev->peek() != 0xAA)
-    {
+    // Read all available bytes into a local buffer to find the newest packet
+    const int maxBuf = 256; // shall be for 16 packets, more than enough for 100ms at 10ms/packet
+    uint8_t raw[maxBuf];
+    int count = (avail > maxBuf) ? maxBuf : avail;
+
+    // If more data than buffer, discard oldest bytes first
+    while (avail > maxBuf) {
         serial_dev->read();
-        return false;
+        avail--;
     }
 
-    // Now read all 19 bytes
-    if (serial_dev->available() < 19) return false;
+    for (int i = 0; i < count; i++) {
+        raw[i] = serial_dev->read();
+    }
 
-    // at this point we know there's at least 19 bytes available and the first is AA
-    if (serial_dev->read() != 0xAA) return false;
+    // Search backwards for the last valid 19-byte packet (header: 0xAA 0xAA)
+    int packetStart = -1;
+    for (int i = count - 19; i >= 0; i--) {
+        if (raw[i] == 0xAA && raw[i + 1] == 0xAA) {
+            // Verify checksum: sum of bytes [2..17] == byte [18]
+            uint8_t sum = 0;
+            for (int j = 2; j < 18; j++) sum += raw[i + j];
+            if (sum == raw[i + 18]) {
+                packetStart = i;
+                break;
+            }
+        }
+    }
 
-    // make sure the next byte is the second 0xAA
-    if (serial_dev->read() != 0xAA) return false;
+    if (packetStart < 0) return false;
 
-    uint8_t buffer[19];
-    if (!serial_dev->readBytes(buffer, 17)) return false;
-
-    // get checksum ready
-    uint8_t sum = 0;
-    for (uint8_t i = 0; i < 16; i++) sum += buffer[i];
-
-    if (sum != buffer[16]) return false;
-
-    //clean out any remaining bytes in case teensy was busy
-    //while (serial_dev->available() > 0) serial_dev->read();
+    // Point to payload (skip the two 0xAA header bytes)
+    uint8_t *buffer = &raw[packetStart + 2];
 
     int16_t temp;
     temp = buffer[1] + (buffer[2] << 8);

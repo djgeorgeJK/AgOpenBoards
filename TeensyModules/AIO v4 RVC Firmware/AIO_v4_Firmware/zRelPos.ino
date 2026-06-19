@@ -1,5 +1,5 @@
 
-void relPosDecode()
+void relPosDecode(BNO_rvcData bnoData)
 {
     int carrSoln;
     bool gnssFixOk, diffSoln, relPosValid;
@@ -40,7 +40,7 @@ void relPosDecode()
         if (baseline == 0) baseline += 0.01;
         rollDual = (asin(relPosD / baseline)) * -RAD_TO_DEG;
         //digitalWrite(GPSGREEN_LED, HIGH);   //Turn green GPS LED ON
-        imuHandler();             //No IMU so use dual data direct
+        imuHandler(bnoData);             //No IMU so use dual data direct
         dualReadyRelPos = true;   //RelPos ready is true so PAOGI will send when the GGA is also ready
     }
     else
