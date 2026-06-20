@@ -76,7 +76,7 @@ uint8_t helloFromAutoSteer[] = {0x80, 0x81, 126, 126, 5, 0, 0, 0, 0, 0, 71}; // 
 int16_t helloSteerPosition = 0;
 
 //uint8_t helloFromMachine[] = {128, 129, 123, 123, 5, 0, 0, 0, 0, 0, 71};
-uint8_t helloFromMachine[] = {0x80, 0x81, 0x7B, 0x7B, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x47};
+uint8_t helloFromMachine[] = {0x80, 0x81, 0x7B, 0x7B, 0x05, 0x00, 0x00, FW_MAJ, FW_MIN, FW_PATCH, 0x47};
 // fromAutoSteerData FD 253 - ActualSteerAngle*100 -5,6, SwitchByte-7, pwmDisplay-8
 
 uint8_t PGN_253[] = {0x80, 0x81, 126, 0xFD, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0xCC};
