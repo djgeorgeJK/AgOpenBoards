@@ -19,6 +19,30 @@
 #define PWM_Frequency 2000
 
 // WAS Calabration
+typedef enum
+{
+    WAS_50 = 0,
+    WAS_45,
+    WAS_40,
+    WAS_35,
+    WAS_30,
+    WAS_25,
+    WAS_20,
+    WAS_15,
+    WAS_10,
+    WAS_5,
+    WAS_0,
+    WAS5,
+    WAS10,
+    WAS15,
+    WAS20,
+    WAS25,
+    WAS30,
+    WAS35,
+    WAS40,
+    WAS45,
+    WAS50
+} eWAS;
 float inputWAS[] = {-50.00, -45.0, -40.0, -35.0, -30.0, -25.0, -20.0, -15.0, -10.0, -5.0, 0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0}; // Input WAS do not adjust
 float outputWAS[] = {-50.00, -45.0, -40.0, -35.0, -30.0, -25.0, -20.0, -15.0, -10.0, -5.0, 0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0};
 
@@ -27,11 +51,9 @@ float outputWAS[] = {-50.00, -45.0, -40.0, -35.0, -30.0, -25.0, -20.0, -15.0, -1
 //   ***********  Motor drive connections  **************
 // Connect ground only for cytron, Connect Ground and +5v for IBT2
 
-// Dir1 for Cytron Dir, Both L and R enable for IBT2
-#define MC_DIRECTION_PIN 2
+// see GPIO in dpio.h for pin definitions
 
-// PWM pin for Cytron PWM, Left PWM for IBT2
-#define MC_PWM_1            3
+
 
 // Not Connected for Cytron, Right PWM for IBT2
 #define MC_PWM_2LEFT        4
@@ -68,6 +90,7 @@ uint32_t currentTime = LOOP_TIME;
 const uint16_t WATCHDOG_THRESHOLD = 100;
 const uint16_t WATCHDOG_FORCE_VALUE = WATCHDOG_THRESHOLD + 2; // Should be greater than WATCHDOG_THRESHOLD
 uint8_t watchdogTimer = WATCHDOG_FORCE_VALUE;
+#define Watchdog_Reset()    watchdogTimer = 0;
 
 // Heart beat hello AgIO
 uint8_t helloFromIMU[] = {128, 129, 121, 121, 5, 1, 2, 3, 4, 5, 71};
@@ -117,7 +140,6 @@ float gpsSpeed = 0;
 // steering variables
 float steerAngleActual = 0;
 float steerAngleSetPoint = 0; // the desired angle from AgOpen
-int16_t steeringPosition = 0; // from steering sensor
 float steerAngleError = 0;    // setpoint - actual
 
 // pwm variables
@@ -179,6 +201,12 @@ void steerSettingsInit()
 
 void autosteerSetup()
 {
+    // init AD converter
+    analog_init();
+    analogReadRes(12);
+    analogReadAveraging(16);
+    pinMode(AN_POT_MY, INPUT_DISABLE);
+    // init PWM for motor control
     analogWriteFrequency(MC_PWM_1, PWM_Frequency); // Zakladni nosna frekvence PWM
     analogWrite(MC_PWM_1, 0);                      // Start with 0% Duty
     // analogWriteFrequency(MC_PWM_2LEFT, PWM_Frequency);
@@ -258,7 +286,8 @@ void autosteerSetup()
 } // End of Setup
 
 // ********************  Main loop  *************************************************
-void autosteerLoop()
+
+void autosteerLoop()    // called from main loop
 {
     static uint8_t lastSwitchByte = 0xFF;
 
@@ -399,43 +428,48 @@ void autosteerLoop()
         lastSwitchByte = udpSwitchMask;
     }
 // get steering position
+    int16_t steerADC;
 #ifdef USE_EXTERN_ADC
     if (steerConfig.SingleInputWAS) // Single Input ADS
     {
         adc.setMux(ADS1115_REG_CONFIG_MUX_SINGLE_0);
-        steeringPosition = adc.getConversion();     // 16 bit value 0-65535
+        steerADC = adc.getConversion();     // 16 bit value 0-65535
         adc.triggerConversion();                    // ADS1115 Single Mode
-        steeringPosition = (steeringPosition >> 1); // bit shift by 2  0 to 13610 is 0 to 5v
-        helloSteerPosition = steeringPosition - 6800;
-        steeringPosition = (steeringPosition - 6805;
+        steerADC = (steerADC >> 1); // bit shift by 2  0 to 13610 is 0 to 5v
+        helloSteerPosition = steerADC - 6800;
+        steerADC = (steerADC - 6805;
     }
     else // ADS1115 Differential Mode
     {
         adc.setMux(ADS1115_REG_CONFIG_MUX_DIFF_0_1);
-        steeringPosition = adc.getConversion();
+        steerADC = adc.getConversion();
         adc.triggerConversion();
-        steeringPosition = (steeringPosition >> 1); // bit shift by 2  0 to 13610 is 0 to 5v
-        helloSteerPosition = steeringPosition - 6800;
-        steeringPosition = (steeringPosition - 6805;
+        steerADC = (steerADC >> 1); // bit shift by 2  0 to 13610 is 0 to 5v
+        helloSteerPosition = steerADC - 6800;
+        steerADC = (steerADC - 6805;
     }
   #else
-    steeringPosition = analogRead(AN_POT_MY); // I have 10bit (0-4095) for 65°, it is 63dcounts per deg
-    steeringPosition -= (4095 / 2);           // get middle
+    steerADC = analogRead(AN_POT_MY); // I have 12bit
+    //steerADC = steerADC >> 2;             // bit shift by 2 to get 10 bit value
+                                          //  (0-1024) for 65°.
+                                          // 1024/65 = 15.75 counts per degree.
+                                          // So 32 counts is about 2 degrees of steer angle.
+                                          // I have it set up so that the middle of the pot is zero, so subtract 512 to get -512 to +512 with zero in the middle. You will need to adjust this for your setup. You can also use a different pot and adjust the code accordingly.
+    //steerADC -= (1024 / 2);           // get middle
   #endif
 
-    // DETERMINE ACTUAL STEERING POSITION
-    // convert position to steer angle. 32 counts per degree of steer pot position in my case
+    // DETERMINE ACTUAL STEERING POSITION in Angles
+    // convert position to steer angle. Use calculated XX counts per degree.
     //   ***** make sure that negative steer angle makes a left turn and positive value is a right turn *****
-
     if (steerConfig.InvertWAS)
     {
-        steeringPosition = (steeringPosition - steerSettings.wasOffset); // 1/2 of full scale
-        steerAngleActual = (float)(steeringPosition) / -steerSettings.steerSensorCounts;
+        steerADC = (steerADC - steerSettings.wasOffset);    // was Zero from AgOpenPS
+        steerAngleActual = (float)(steerADC) / -steerSettings.steerSensorCounts;
     }
     else
     {
-        steeringPosition = (steeringPosition + steerSettings.wasOffset); // 1/2 of full scale
-        steerAngleActual = (float)(steeringPosition) / steerSettings.steerSensorCounts;
+        steerADC = (steerADC + steerSettings.wasOffset);
+        steerAngleActual = (float)(steerADC) / steerSettings.steerSensorCounts;
     }
 
     // Ackerman fix
@@ -451,14 +485,24 @@ void autosteerLoop()
         watchdogTimer = WATCHDOG_FORCE_VALUE;
         // Serial.printf("Zastavuji Steering");
     }
+    
 
-    // Map WAS
+    // Map WAS - linear interpolation
     float mappedWAS = multiMap<float>(steerAngleActual, inputWAS, outputWAS, 21);
     steerAngleActual = mappedWAS;
 
-    if (watchdogTimer < WATCHDOG_THRESHOLD)
+    static int16_t lastSteerADC = 0;
+    static float lastSteerAngle = 0;
+    if(lastSteerADC != steerADC )//|| abs(lastSteerAngle - steerAngleActual) > 0.2)
     {
-        Serial.printf("Steer Actual: %f, Steer Setpoint: %f, GPS Speed: %f\r\n", steerAngleActual, steerAngleSetPoint, gpsSpeed);
+        Serial.printf("Steer ADC: %d, Steer Angle: %f\r\n", steerADC, steerAngleActual);
+        lastSteerADC = steerADC;
+        lastSteerAngle = steerAngleActual;
+    }
+
+    if (watchdogTimer < WATCHDOG_THRESHOLD) // normal situation when Packet are receiving from AgOpenGPS.
+    {
+        //Serial.printf("Steer Actual: %f, Steer Setpoint: %f, GPS Speed: %f\r\n", steerAngleActual, steerAngleSetPoint, gpsSpeed);
 
         steerAngleError = steerAngleActual - steerAngleSetPoint; // calculate the steering error
         // if (abs(steerAngleError)< steerSettings.lowPWM) steerAngleError = 0;
@@ -467,7 +511,7 @@ void autosteerLoop()
         if (gpsSpeed < 0.2)
             steerAngleError = 0;
 
-        calcSteeringPID(); // do the pid
+        calcSteeringPID(steerAngleError); // do the pid
         motorDrive();      // out to motors the pwm value
         // Autosteer Led goes GREEN if autosteering
 
@@ -617,6 +661,7 @@ void ReceiveUdp()
             // Serial Send to agopenGPS
 
             int16_t sa = (int16_t)(steerAngleActual * 100);
+            //Serial.printf("Steer Angle PGN: %f\r\n", steerAngleActual);
 
             PGN_253[5] = (uint8_t)sa;
             PGN_253[6] = sa >> 8;
@@ -715,7 +760,7 @@ void ReceiveUdp()
         {
             uint8_t sett = autoSteerUdpData[5]; // setting0
 
-            Serial.printf("Steer config received, %d, %d, %d, %d\r\n", autoSteerUdpData[5], autoSteerUdpData[6], autoSteerUdpData[7], autoSteerUdpData[8]);
+            Serial.printf("Steer config received, %d, Encoder %d, %d, %d\r\n", autoSteerUdpData[5], autoSteerUdpData[6], autoSteerUdpData[7], autoSteerUdpData[8]);
             if (bitRead(sett, 0)) steerConfig.InvertWAS = 1; else steerConfig.InvertWAS = 0; // AG invert WAS
             if (bitRead(sett, 1)) steerConfig.IsRelayActiveHigh = 1;   else  steerConfig.IsRelayActiveHigh = 0;
             if (bitRead(sett, 2)) steerConfig.MotorDriveDirection = 1; else  steerConfig.MotorDriveDirection = 0; // AG Invert Motor Direction

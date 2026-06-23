@@ -16,7 +16,7 @@
 #define AN_POT_MY               A10     //24
 
 // Velocity (MPH speed) PWM pin
-#define GP_VELOCITY_PIN         29
+#define GP_VELOCITY_PIN         28
 
 //--------------------------- sections for spreader
 #if defined (BOARD_01_2026_v1_3)
@@ -33,9 +33,14 @@
 #endif
 
 
+/* Motor outputs*/
+// Dir1 for Cytron Dir, Both L and R enable for IBT2
+#define MC_DIRECTION_PIN            30
+#define MC_PWM_1                    29      //PWM for both Cytron and IBT2
+
 //--------------------------- Switch Input Pins ------------------------
 #define STEERSW_PIN     32
-#define REMOTE_PIN      30
+#define REMOTE_PIN      26
 #define DEBUG_PIN       41
 #if defined (BOARD_01_2026_v1_3)
     #define WORKSW_PIN      27

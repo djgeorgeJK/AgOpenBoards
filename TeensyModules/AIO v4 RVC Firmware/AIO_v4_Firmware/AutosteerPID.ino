@@ -1,10 +1,18 @@
-void calcSteeringPID(void)
+typedef struct
+{
+    float Kp;
+    float lowPWM;
+    float highPWM;
+    float minPWM;
+} pidPar_t;
+
+void calcSteeringPID(float pidError)
 {
     //Proportional only
-    pValue = steerSettings.Kp * steerAngleError;
+    pValue = steerSettings.Kp * pidError;
     pwmDrive = (int16_t)pValue;
 
-    errorAbs = abs(steerAngleError);
+    errorAbs = abs(pidError);
     int16_t newMax = 0;
 
     if (errorAbs < LOW_HIGH_DEGREES)

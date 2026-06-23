@@ -194,8 +194,8 @@ void setup()
     Serial.println("\r\nEnd setup, waiting for GPS...\r\n");
     Autosteer_running = true;
 
-    int val = analogRead(A17);
-    Serial.printf("analog A17 is: %d\r\n", val);
+    int val = analogRead(AN_POT_MY);
+    Serial.printf("Wheel AD data: %d\r\n", val);
 
     Machine_Init();
 }
@@ -349,9 +349,9 @@ void TaskScheduler(void)
             BnoData = bnoData;
         }
 
-        if ((systick_millis_count % 500) == 0) // each 500 msec
+        if ((systick_millis_count % 1000) == 0) // each 1000 msec
         {
-            Serial.printf("Serial BNO08x:X:%d, Y:%d, Z:%d\r\n", bnoData.pitchX10, bnoData.rollX10, bnoData.yawX10);
+            //Serial.printf("Serial BNO08x:X:%d, Y:%d, Z:%d\r\n", bnoData.pitchX10, bnoData.rollX10, bnoData.yawX10);
         }
 
     }
