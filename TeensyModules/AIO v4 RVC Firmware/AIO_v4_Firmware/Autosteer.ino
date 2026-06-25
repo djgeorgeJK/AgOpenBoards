@@ -6,10 +6,10 @@
    So don't claim it as your own
 */
 
+#include "AutosteerPID.h"
 ////////////////// User Settings /////////////////////////
 
-// How many degrees before decreasing Max PWM
-#define LOW_HIGH_DEGREES 3.0
+
 
 /*  PWM Frequency ->
      490hz (default) = 0
@@ -52,6 +52,7 @@ float outputWAS[] = {-50.00, -45.0, -40.0, -35.0, -30.0, -25.0, -20.0, -15.0, -1
 // Connect ground only for cytron, Connect Ground and +5v for IBT2
 
 // see GPIO in dpio.h for pin definitions
+
 
 
 
@@ -143,10 +144,8 @@ float steerAngleSetPoint = 0; // the desired angle from AgOpen
 float steerAngleError = 0;    // setpoint - actual
 
 // pwm variables
-int16_t pwmDrive = 0, pwmDisplay = 0;
-float pValue = 0;
-float errorAbs = 0;
-float highLowPerDeg = 0;
+int16_t pwmDisplay = 0;
+
 
 // Steer switch button  ***********************************************************************************************************
 uint8_t pulseCount = 0; // Steering Wheel Encoder
@@ -154,36 +153,36 @@ bool encEnable = false; // debounce flag
 uint8_t thisEnc = 0, lastEnc = 0;
 
 // Variables for settings
-struct Storage
-{
-    uint8_t Kp = 40;     // proportional gain
-    uint8_t lowPWM = 10; // band of no action
-    int16_t wasOffset = 0;
-    uint8_t minPWM = 9;
-    uint8_t highPWM = 60; // max PWM value
-    float steerSensorCounts = 30;
-    float AckermanFix = 1; // sent as percent
+//Storage steerSettings; // 11 bytes
+PID_Parameters_t steerSettings = {
+    .Kp = 40,               // proportional gain
+    .lowPWM = 10,           // band of no action
+    .wasOffset = 0,
+    .minPWM = 9,
+    .highPWM = 60,          // max PWM value
+    .steerSensorCounts = 30,
+    .AckermanFix = 1        // sent as percent
 };
-Storage steerSettings; // 11 bytes
+
 
 // Variables for settings - 0 is false
-struct Setup
+typedef struct SteerConfig
 {
-    uint8_t InvertWAS = 0;         // Wheel angle Sensor
-    uint8_t IsRelayActiveHigh = 0; // if zero, active low (default)
-    uint8_t MotorDriveDirection = 0;
-    uint8_t SingleInputWAS = 1;
-    uint8_t CytronDriver = 1;
-    uint8_t SteerSwitch = 0; // 1 if switch selected
-    uint8_t SteerButton = 0; // 1 if button selected
-    uint8_t ShaftEncoder = 0;
-    uint8_t PressureSensor = 0;
-    uint8_t CurrentSensor = 0;
-    uint8_t PulseCountMax = 5;
-    uint8_t IsDanfoss = 0;
-    uint8_t IsUseY_Axis = 1; // Set to 0 to use X Axis, 1 to use Y avis
-};
-Setup steerConfig; // 13 bytes
+    bool InvertWAS = 0;             // Byte 0, Bit 0 - Wheel angle Sensor
+    bool IsRelayActiveHigh = 0;     // Byte 0, Bit 1 - if zero, active low (default)
+    bool MotorDriveDirection = 0;   // Byte 0, Bit 2 - Motor Drive Direction
+    bool SingleInputWAS = 1;        // Byte 0, Bit 3 - Single Input WAS
+    bool CytronDriver = 1;          // Byte 0, Bit 4 - Cytron Driver
+    bool SteerSwitch = 0;           // Byte 0, Bit 5 - 1 if switch selected
+    bool SteerButton = 0;           // Byte 0, Bit 6 - 1 if button selected
+    bool ShaftEncoder = 0;          // Byte 0, Bit 7 - 1 if shaft encoder selected
+    uint8_t PulseCountMax = 5;      // Byte 1
+    bool IsDanfoss = 0;             // Byte 2, Bit 0
+    bool PressureSensor = 0;        // Byte 2, Bit 1
+    bool CurrentSensor = 0;         // Byte 2, Bit 2
+    uint8_t IsUseY_Axis = 1;        // Byte 2, Bit 3 - Set to 0 to use X Axis, 1 to use Y Axis
+}SteerConfig_t;
+SteerConfig_t steerConfig;  // also saved in EE_ADDR_STEECFG
 
 void steerConfigInit()
 {
@@ -193,11 +192,7 @@ void steerConfigInit()
     }
 }
 
-void steerSettingsInit()
-{
-    // for PWM High to Low interpolator
-    highLowPerDeg = ((float)(steerSettings.highPWM - steerSettings.lowPWM)) / LOW_HIGH_DEGREES;
-}
+
 
 void autosteerSetup()
 {
@@ -261,7 +256,6 @@ void autosteerSetup()
         Serial.printf(" Autosetup EEPROM OK \r\n");
     }
 
-    steerSettingsInit();
     steerConfigInit();
 
     if (Autosteer_running)
@@ -485,20 +479,19 @@ void autosteerLoop()    // called from main loop
         watchdogTimer = WATCHDOG_FORCE_VALUE;
         // Serial.printf("Zastavuji Steering");
     }
-    
 
     // Map WAS - linear interpolation
     float mappedWAS = multiMap<float>(steerAngleActual, inputWAS, outputWAS, 21);
     steerAngleActual = mappedWAS;
 
-    static int16_t lastSteerADC = 0;
-    static float lastSteerAngle = 0;
-    if(lastSteerADC != steerADC )//|| abs(lastSteerAngle - steerAngleActual) > 0.2)
-    {
-        Serial.printf("Steer ADC: %d, Steer Angle: %f\r\n", steerADC, steerAngleActual);
-        lastSteerADC = steerADC;
-        lastSteerAngle = steerAngleActual;
-    }
+    // static int16_t lastSteerADC = 0;
+    // static float lastSteerAngle = 0;
+    // if(lastSteerADC != steerADC )//|| abs(lastSteerAngle - steerAngleActual) > 0.2)
+    // {
+    //     Serial.printf("Steer ADC: %d, Steer Angle: %f\r\n", steerADC, steerAngleActual);
+    //     lastSteerADC = steerADC;
+    //     lastSteerAngle = steerAngleActual;
+    // }
 
     if (watchdogTimer < WATCHDOG_THRESHOLD) // normal situation when Packet are receiving from AgOpenGPS.
     {
@@ -508,11 +501,12 @@ void autosteerLoop()    // called from main loop
         // if (abs(steerAngleError)< steerSettings.lowPWM) steerAngleError = 0;
 
         // Don't turn wheels if speed less than 0.3km/hr
-        if (gpsSpeed < 0.2)
-            steerAngleError = 0;
+        // if (gpsSpeed < 0.2)
+        //     steerAngleError = 0;
 
-        calcSteeringPID(steerAngleError); // do the pid
-        motorDrive();      // out to motors the pwm value
+        int16_t pwmDrive = calcSteeringPID(&steerSettings, steerAngleError); // do the pid
+        if (steerConfig.MotorDriveDirection) pwmDrive *= -1;
+        pwmDisplay = motorDrive(pwmDrive);      // out to motors the pwm value
         // Autosteer Led goes GREEN if autosteering
 
         digitalWrite(AUTOSTEER_ACTIVE_LED, 1);
@@ -522,8 +516,7 @@ void autosteerLoop()    // called from main loop
     {
         // we've lost the comm to AgOpenGPS, or just stop request
 
-        pwmDrive = 0; // turn off steering motor
-        motorDrive(); // out to motors the pwm value
+        pwmDisplay = motorDrive(0); // out to motors the pwm value
         pulseCount = 0;
         // Autosteer Led goes back to RED when autosteering is stopped
         digitalWrite(AUTOSTEER_STANDBY_LED, 1);
@@ -620,7 +613,7 @@ void ReceiveUdp()
     Eth_udpAutoSteer.read(autoSteerUdpData, UDP_TX_PACKET_MAX_SIZE);
     //Serial.printf("Ethernet data received.\r\n");
 
-    if (autoSteerUdpData[0] == 0x80 && autoSteerUdpData[1] == 0x81 && autoSteerUdpData[2] == 0x7F) // Data
+    if (autoSteerUdpData[0] == 0x80 && autoSteerUdpData[1] == 0x81 && autoSteerUdpData[2] == 0x7F) // Data 0x80,0x81,0x7F
     {
         if (autoSteerUdpData[3] == 0xFE && Autosteer_running) // 254
         {
@@ -751,17 +744,14 @@ void ReceiveUdp()
             // store in EEPROM
             EEPROM.put(EE_ADDR_READY, EEP_Ident);
             EEPROM.put(EE_ADDR_STEERSET, steerSettings);
-
-            // Re-Init steer settings
-            steerSettingsInit();
         }
 
         else if (autoSteerUdpData[3] == 0xFB) // 251 FB - SteerConfig
         {
-            uint8_t sett = autoSteerUdpData[5]; // setting0
+            uint8_t sett = autoSteerUdpData[5]; // Config Data Byte 0
 
             Serial.printf("Steer config received, %d, Encoder %d, %d, %d\r\n", autoSteerUdpData[5], autoSteerUdpData[6], autoSteerUdpData[7], autoSteerUdpData[8]);
-            if (bitRead(sett, 0)) steerConfig.InvertWAS = 1; else steerConfig.InvertWAS = 0; // AG invert WAS
+            if (bitRead(sett, 0)) steerConfig.InvertWAS = 1;           else steerConfig.InvertWAS = 0; // AG invert WAS
             if (bitRead(sett, 1)) steerConfig.IsRelayActiveHigh = 1;   else  steerConfig.IsRelayActiveHigh = 0;
             if (bitRead(sett, 2)) steerConfig.MotorDriveDirection = 1; else  steerConfig.MotorDriveDirection = 0; // AG Invert Motor Direction
             if (bitRead(sett, 3)) steerConfig.SingleInputWAS = 1;      else  steerConfig.SingleInputWAS = 0;
@@ -770,13 +760,12 @@ void ReceiveUdp()
             if (bitRead(sett, 6)) steerConfig.SteerButton = 1;         else  steerConfig.SteerButton = 0;
             if (bitRead(sett, 7)) steerConfig.ShaftEncoder = 1;        else  steerConfig.ShaftEncoder = 0; // AG setting je to Turn Sensor
 
-            steerConfig.PulseCountMax = autoSteerUdpData[6];
+            steerConfig.PulseCountMax = autoSteerUdpData[6]; // Config Data Byte 1
 
             // was speed
             // autoSteerUdpData[7];
 
-            sett = autoSteerUdpData[8]; // setting1 - Danfoss valve etc
-
+            sett = autoSteerUdpData[8]; // // Config Data Byte 2
             if (bitRead(sett, 0)) steerConfig.IsDanfoss = 1;      else steerConfig.IsDanfoss = 0;
             if (bitRead(sett, 1)) steerConfig.PressureSensor = 1; else steerConfig.PressureSensor = 0;
             if (bitRead(sett, 2)) steerConfig.CurrentSensor = 1;  else steerConfig.CurrentSensor = 0;

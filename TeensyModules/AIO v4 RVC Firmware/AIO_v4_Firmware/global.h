@@ -9,7 +9,7 @@
 /* EEPROM map */
 #define EE_ADDR_READY        0    // EEread   2B
 #define EE_ADDR_STEERSET     8    // Storage steerSettings 11B
-#define EE_ADDR_STEECFG     20    // Setup steerConfig;    13 B
+#define EE_ADDR_STEECFG     20    // SteerConfig_t steerConfig;    13 B
 #define EE_ADDR_NETWORK     36    // ConfigIP_t networkAddress;   //3 bytes
 
 
