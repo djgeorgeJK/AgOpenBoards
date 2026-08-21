@@ -117,18 +117,18 @@ extern elapsedMillis EthernetCheck_msCounter;
 void EthernetTask(void)
 {
     // ethernet milisecond counter elapsed
-    if (EthernetCheck_msCounter > 10000)
+    if (EthernetCheck_msCounter > 1000)
     {
         if (Ethernet.linkStatus() == LinkON)
         {
             EthernetCheck_msCounter = 0;
-            digitalWrite(Power_on_LED, 0);
             digitalWrite(Ethernet_Active_LED, 1);
+            digitalWrite(MY_LED_1, HIGH);
         }
         else
         {
-            digitalWrite(Power_on_LED, 1);
             digitalWrite(Ethernet_Active_LED, 0);
+            digitalWrite(MY_LED_1, LOW);
         }
     }
 }

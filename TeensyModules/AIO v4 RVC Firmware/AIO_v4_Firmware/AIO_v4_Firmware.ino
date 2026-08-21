@@ -125,14 +125,26 @@ void Process_RTK_FromUDP(void);
 // Setup procedure ------------------------
 void setup()
 {
-    delay(1000);              // Small delay so serial can monitor start up
     set_arm_clock(450000000); // Set CPU speed to 150mhz
     Serial.begin(115200);
+
+    pinMode(STARTUP_LED, OUTPUT);
+    pinMode(MY_LED_1, OUTPUT);
+    for (int i = 0; i < 5; i++)         // startup blink with delay
+    {
+        digitalWrite(STARTUP_LED, HIGH);
+        digitalWrite(MY_LED_1, HIGH);
+        delay(100);
+        digitalWrite(STARTUP_LED, LOW);
+        digitalWrite(MY_LED_1, LOW);
+        delay(100);
+    }
+    pinMode(STARTUP_LED, INPUT); // set back to input not colize  with CAN bus
+
     Serial.printf("CPU speed set to: %d\r\n", F_CPU_ACTUAL);
     Serial.printf("Firmware version %d.%d.%d Debug \r\n", FW_MAJ, FW_MIN, FW_PATCH);
 
     // pinMode(GGAReceivedLED,         OUTPUT);
-    pinMode(Power_on_LED, OUTPUT);
     pinMode(Ethernet_Active_LED, OUTPUT);
     pinMode(GPSRED_LED, OUTPUT);
     // pinMode(GPSGREEN_LED,           OUTPUT);
@@ -334,7 +346,7 @@ void TaskScheduler(void)
 
             // RVC BNO08x
             if (rvc.read(&bnoData))
-             {
+            {
                 useBNO08xRVC = true;
             }else
             {
