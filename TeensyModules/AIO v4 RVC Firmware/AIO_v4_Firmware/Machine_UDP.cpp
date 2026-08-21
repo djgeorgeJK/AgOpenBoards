@@ -90,17 +90,25 @@ void Machine_Init(void)
     pinMode(hwPinTramAsignment[0], OUTPUT);
     pinMode(hwPinTramAsignment[1], OUTPUT);
     uint16_t ee_ready;
-    EEPROM.get(EE_ADDR_SECTI_HEAD, ee_ready);              // read identifier
+    EEPROM.get(EE_ADDR_SECTION_HEAD, ee_ready);              // read identifier
 
-    if (ee_ready == EEP_Ident)
+    if (ee_ready == EE_HEADER_DATA)
     {
+
         EEPROM.get(EE_ADDR_SECTI, PinToSection);
         EEPROM.get(EE_ADDR_AOGCFG, aogConfig);
         Serial.printf(" Machine EEPROM OK \r\n");
     }
+    else
+    {
+        EEPROM.put(EE_ADDR_SECTION_HEAD, EE_HEADER_DATA);
+        EEPROM.put(EE_ADDR_SECTI, PinToSection);
+        EEPROM.put(EE_ADDR_AOGCFG, aogConfig);
+        Serial.printf(" Machine EEPROM not initialized, writing defaults \r\n");
+    }
 }
 
-void Machine_setup()
+void Machine_setup(void)
 {
     //register to port 8888
     //set the pins to be outputs (pin numbers)
@@ -202,7 +210,7 @@ void Machine_ProcessRelayConfig(uint8_t * udpData)  // 236 machine Relay Pin Set
     }
 
     //save in EEPROM and restart
-    EEPROM.put(EE_ADDR_SECTI_HEAD, EEP_Ident);
+    EEPROM.put(EE_ADDR_SECTION_HEAD, EE_HEADER_DATA);
     EEPROM.put(EE_ADDR_SECTI, PinToSection);
 }
 

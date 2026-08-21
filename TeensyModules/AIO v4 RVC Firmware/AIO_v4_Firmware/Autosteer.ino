@@ -120,8 +120,7 @@ elapsedMillis gpsSpeedUpdateTimer = 0;
 void SendUdp(uint8_t *data, uint8_t datalen, IPAddress dip, uint16_t dport);
 #endif
 
-// EEPROM
-int16_t EEread = 0;
+
 
 // Relays
 uint8_t relay = 0, relayHi = 0, uTurn = 0;
@@ -238,22 +237,23 @@ void autosteerSetup()
     // 50Khz I2C
     // TWBR = 144;   //Is this needed?
 
-    EEPROM.get(EE_ADDR_READY, EEread); // read identifier
+    uint16_t EEread = 0;
+    EEPROM.get(EE_ADDR_HEADER, EEread); // read identifier
 
-    if (EEread != EEP_Ident) // check on first start and write EEPROM
+    if (EEread != EE_HEADER_DATA) // when first start, initialize it with default values
     {
-        EEPROM.put(EE_ADDR_READY, EEP_Ident);
+        EEPROM.put(EE_ADDR_HEADER, EE_HEADER_DATA);
         EEPROM.put(EE_ADDR_STEERSET, steerSettings);
         EEPROM.put(EE_ADDR_STEECFG, steerConfig);
         EEPROM.put(EE_ADDR_NETWORK, networkAddress);
-        Serial.printf(" Autosetup EEPROM rewritten \r\n");
+        Serial.printf(" EEPROM rewritten to defaults !!! \r\n");
     }
     else
     {
         EEPROM.get(EE_ADDR_STEERSET, steerSettings); // read the Settings
         EEPROM.get(EE_ADDR_STEECFG, steerConfig);
         EEPROM.get(EE_ADDR_NETWORK, networkAddress);
-        Serial.printf(" Autosetup EEPROM OK \r\n");
+        Serial.printf(" EEPROM OK \r\n");
     }
 
     steerConfigInit();
@@ -742,7 +742,7 @@ void ReceiveUdp()
             // autoSteerUdpData[13];
 
             // store in EEPROM
-            EEPROM.put(EE_ADDR_READY, EEP_Ident);
+            EEPROM.put(EE_ADDR_HEADER, EE_HEADER_DATA);
             EEPROM.put(EE_ADDR_STEERSET, steerSettings);
         }
 

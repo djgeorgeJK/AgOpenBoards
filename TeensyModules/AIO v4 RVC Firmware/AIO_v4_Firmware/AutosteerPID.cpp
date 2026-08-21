@@ -85,7 +85,7 @@ int16_t motorDrive(int16_t pwmDrive)
     {
         pwmDrive = -1 * pwmDrive;
     }
-    analogWrite(MC_PWM_1, pwmDrive);
+    analogWrite(MC_PWM_1, pwmDrive);        // resolution os 0-255
 
 
     // {    Versio for some driver
