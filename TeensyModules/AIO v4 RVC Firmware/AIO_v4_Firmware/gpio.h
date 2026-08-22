@@ -69,4 +69,8 @@
 #define CAN_INT1      14
 
 
+/* Serial ports */
+
+/* BNO uses Serial 5  pin 21 and 20 */
+
 #endif //__GLOBAL_GUARD__
