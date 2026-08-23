@@ -1,7 +1,7 @@
 /*****************************************************************************
  * @file        Machine_UDP.h
  *
- * @brief:      This  Module is for 
+ * @brief:      This  Module is for
  *
  * @defgroup Machine name
  * @addtogroup modules

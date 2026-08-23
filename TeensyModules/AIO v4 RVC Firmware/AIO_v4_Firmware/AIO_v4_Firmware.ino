@@ -192,7 +192,7 @@ void setup()
     while (rvcBnoTimer < 1000)
     {
         // check if new Data
-        if (rvc.read(&bnoInitData))
+        if (rvc.read(&bnoInitData) == BNO_RVC_SUCCESS)
         {
             useBNO08xRVC = true;
             Serial.printf("Serial BNO08x Good To Go. X:%d, Y:%d, Z:%d\r\n", bnoInitData.pitchX10, bnoInitData.rollX10, bnoInitData.yawX10);
@@ -322,7 +322,8 @@ void Process_RTK_FromRadio(void)
 void TaskScheduler(void)
 {
     static uint32_t scheduler_last_cntr;
-    static BNO_rvcData bnoData;
+    static BNO_rvcData bnoData = {0};
+    static uint32_t RvcFaultyCounter = 0;
 
     if (scheduler_last_cntr != systick_millis_count)
     {
@@ -339,26 +340,41 @@ void TaskScheduler(void)
             // Buttons_Sample();
         }
 
+
+        if ((systick_millis_count % 15) == 0) // each  ms
+        {
+            // RVC BNO08x shall send packet every 10ms. When call too often, it returns 2 or 3 and many errors,
+            // ot looks like data would be flushed
+            BNO_rvcStatus_t status = rvc.read(&bnoData);
+            if (status != BNO_RVC_SUCCESS)    // some fault
+            {
+                Serial.printf("Serial BNO08x not resp %d\r\n", status);
+                ++ RvcFaultyCounter;
+                if (RvcFaultyCounter > 4)
+                {
+                    RvcFaultyCounter = 0;
+                    Serial.printf("Serial BNO08x not responding 4 times\r\n");
+                    // use last value
+                    //bnoData = { 0 };
+                }
+            }else
+            {
+                useBNO08xRVC = true;
+                RvcFaultyCounter = 0;
+                //Serial.printf("BNO08x X:%d, Y:%d, Z:%d\r\n", bnoData.pitchX10, bnoData.rollX10, bnoData.yawX10);
+                imuHandler(bnoData); // Get IMU data ready
+            }
+
+            BnoData = bnoData;  // temporialy used for dual heading and roll data
+        }
+
+
+
+
         if ((systick_millis_count % MACHINE_LOOP_PERIOD_MS) == 0) // each 100 ms
         {
             Machine_loop();
             CanBus_Task();
-
-            // RVC BNO08x
-            if (rvc.read(&bnoData))
-            {
-                useBNO08xRVC = true;
-            }else
-            {
-                Serial.printf("Serial BNO08x not responding\r\n");
-                bnoData = { 0 };
-            }
-
-            if (useBNO08xRVC  )
-            {
-                imuHandler(bnoData); // Get IMU data ready
-            }
-            BnoData = bnoData;
         }
 
         if ((systick_millis_count % 1000) == 0) // each 1000 msec

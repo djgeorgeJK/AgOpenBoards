@@ -17,12 +17,18 @@ constexpr auto DEGREE_SCALE = 0.1;        ///< To convert the degree values
 
 typedef struct BNO_rvcData {
     int16_t yawX10,     ///< Yaw in Degrees x 10
-        pitchX10,     ///< Pitch in Degrees x 10
-        rollX10,     ///< Roll in Degrees x 10
-        yawX100,      // yaw in original x100
-        angVel;         //running total of angular velocity
+        pitchX10,       ///< Pitch in Degrees x 10
+        rollX10,        ///< Roll in Degrees x 10
+        yawX100,        //  yaw in original x100
+        angVel;         //  running total of angular velocity
 } BNO_rvcData;
 
+typedef enum {
+  BNO_RVC_SUCCESS = 0,
+    BNO_RVC_NULLPTR = 1,
+    BNO_RVC_NOT_ENOUGH_DATA = 2,
+    BNO_RVC_NO_VALID_PACKET = 3,
+} BNO_rvcStatus_t;
 
 class BNO_rvc {
 public:
@@ -30,7 +36,7 @@ public:
   ~BNO_rvc();
 
   bool begin(Stream *theStream);
-  bool read(BNO_rvcData *heading);
+  BNO_rvcStatus_t read(BNO_rvcData *heading);
 
   uint32_t angCounter;
 

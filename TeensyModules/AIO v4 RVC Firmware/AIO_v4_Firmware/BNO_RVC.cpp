@@ -14,13 +14,19 @@ bool BNO_rvc::begin(Stream *theSerial) {
   return true;
 }
 
-//read the 19 byte sentence: AA AA Index Yaw(2) Pitch(2) Roll(2) X(2) Y(2) Z(2) Reserved Checksum
+
+//read the 19 byte sentence: AA AA Index(1) Yaw(2) Pitch(2) Roll(2) X(2) Y(2) Z(2) Reserved(3) Checksum(1)
+//                                  |        |                       |
+//                                  |        |                       > Acceleration
+//                                  |        > Rotation around Z-axis since reset (0.01° increments, range ± 180°).
+//                                  >          value x100. Jako zataceni
+//                                  > increasing in sequence
 //Data arrives every 10ms. Called every 100ms, so drain buffer and use newest valid packet.
-bool BNO_rvc::read(BNO_rvcData* bnoData) {
-    if (!bnoData) return false;
+BNO_rvcStatus_t BNO_rvc::read(BNO_rvcData* bnoData) {
+    if (bnoData == NULL) return BNO_RVC_NULLPTR;
 
     int avail = serial_dev->available();
-    if (avail < 19) return false;
+    if (avail < 19) return BNO_RVC_NOT_ENOUGH_DATA; // Not enough data for a packet
 
     // Read all available bytes into a local buffer to find the newest packet
     const int maxBuf = 256; // shall be for 16 packets, more than enough for 100ms at 10ms/packet
@@ -51,13 +57,13 @@ bool BNO_rvc::read(BNO_rvcData* bnoData) {
         }
     }
 
-    if (packetStart < 0) return false;
+    if (packetStart < 0) return BNO_RVC_NO_VALID_PACKET; // No valid packet found
 
-    // Point to payload (skip the two 0xAA header bytes)
+    // Point to payload (skip the two 0xAA header bytes + Index byte)
     uint8_t *buffer = &raw[packetStart + 2];
 
     int16_t temp;
-    temp = buffer[1] + (buffer[2] << 8);
+    temp = buffer[1] + (buffer[2] << 8);    //load Yaw(Z axis) - zataceni
 
     if (angCounter < 20)
     {
@@ -72,6 +78,7 @@ bool BNO_rvc::read(BNO_rvcData* bnoData) {
         prevYAw = bnoData->angVel = 0;
     }
 
+    // load data to output structure, convert to degrees x10
     bnoData->yawX10 = (int16_t)((float)temp * DEGREE_SCALE);
     if (bnoData->yawX10 < 0) bnoData->yawX10 +=3600;
 
@@ -81,5 +88,5 @@ bool BNO_rvc::read(BNO_rvcData* bnoData) {
     temp = buffer[5] + (buffer[6] << 8);
     bnoData->rollX10 = (int16_t)((float)temp * DEGREE_SCALE);
 
-    return true;
+    return BNO_RVC_SUCCESS; // Success
 }

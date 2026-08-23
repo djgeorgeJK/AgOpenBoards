@@ -37,7 +37,7 @@ void errorHandler()
   //nothing at the moment
 }
 
-void GGA_Handler() //Rec'd GGA
+void GGA_Handler(void) //Rec'd GGA
 {
     // fix time
     parser.getArg(0, fixTime);
@@ -134,7 +134,7 @@ void imuHandler(BNO_rvcData bnoData)
             //Serial.printf(bnoData.angVel);
             //Serial.printf(", ");
             // YawRate
-            if (rvc.angCounter > 0)
+            if (rvc.angCounter > 0) // jsme ve 200ms okne
             {
                 angVel = ((float)bnoData.angVel) / (float)rvc.angCounter;
                 angVel *= 10.0;
