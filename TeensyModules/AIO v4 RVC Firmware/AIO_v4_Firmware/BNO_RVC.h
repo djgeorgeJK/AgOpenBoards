@@ -27,7 +27,8 @@ typedef enum {
   BNO_RVC_SUCCESS = 0,
     BNO_RVC_NULLPTR = 1,
     BNO_RVC_NOT_ENOUGH_DATA = 2,
-    BNO_RVC_NO_VALID_PACKET = 3,
+    BNO_RVC_NO_VALID_HEADER = 3,
+    BNO_RVC_NO_VALID_CHSUM = 4,
 } BNO_rvcStatus_t;
 
 class BNO_rvc {

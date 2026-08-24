@@ -341,7 +341,7 @@ void TaskScheduler(void)
         }
 
 
-        if ((systick_millis_count % 15) == 0) // each  ms
+        if ((systick_millis_count % 8) == 0) // each  ms
         {
             // RVC BNO08x shall send packet every 10ms. When call too often, it returns 2 or 3 and many errors,
             // ot looks like data would be flushed

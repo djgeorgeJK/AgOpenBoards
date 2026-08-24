@@ -29,35 +29,49 @@ BNO_rvcStatus_t BNO_rvc::read(BNO_rvcData* bnoData) {
     if (avail < 19) return BNO_RVC_NOT_ENOUGH_DATA; // Not enough data for a packet
 
     // Read all available bytes into a local buffer to find the newest packet
-    const int maxBuf = 256; // shall be for 16 packets, more than enough for 100ms at 10ms/packet
-    uint8_t raw[maxBuf];
-    int count = (avail > maxBuf) ? maxBuf : avail;
+    const int maxBuf = 64;  // serial has about 64 bytes
+    static uint8_t raw[maxBuf];
+    static uint8_t lastIndex = 0;
 
-    // If more data than buffer, discard oldest bytes first
-    while (avail > maxBuf) {
-        serial_dev->read();
-        avail--;
-    }
 
-    for (int i = 0; i < count; i++) {
+    for (int i = lastIndex; i < lastIndex + 19; i++) {
         raw[i] = serial_dev->read();
     }
 
     // Search backwards for the last valid 19-byte packet (header: 0xAA 0xAA)
     int packetStart = -1;
-    for (int i = count - 19; i >= 0; i--) {
+    for (int i = lastIndex + 19 - 1; i >= 0; i--) {
         if (raw[i] == 0xAA && raw[i + 1] == 0xAA) {
             // Verify checksum: sum of bytes [2..17] == byte [18]
+            packetStart = -2; // mark header found
             uint8_t sum = 0;
-            for (int j = 2; j < 18; j++) sum += raw[i + j];
+            for (int j = 2; j < 18; j++) {sum += raw[i + j];}
+            Serial.printf("Index %d, avail %d\r\n", raw[i + 2], avail);
             if (sum == raw[i + 18]) {
                 packetStart = i;
+                Serial.printf("BNO08x full packet found at index %d\r\n", packetStart);
                 break;
+            }
+            else
+            {
+                Serial.printf("BNO08x sum fail sum is %d !=%d\r\n", sum, raw[i + 18]);
             }
         }
     }
 
-    if (packetStart < 0) return BNO_RVC_NO_VALID_PACKET; // No valid packet found
+    lastIndex = (lastIndex + 19) % maxBuf;  // save last processed byte to continue reading from serial next time
+
+    if (packetStart == -1)
+    {
+        return BNO_RVC_NO_VALID_HEADER; // No valid packet found
+    }
+    if (packetStart == -2)
+    {
+        return BNO_RVC_NO_VALID_CHSUM;  // Header found but checksum failed
+    }
+
+    /* packet complete */
+    lastIndex = 0;
 
     // Point to payload (skip the two 0xAA header bytes + Index byte)
     uint8_t *buffer = &raw[packetStart + 2];
