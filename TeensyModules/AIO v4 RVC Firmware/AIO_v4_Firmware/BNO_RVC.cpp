@@ -46,10 +46,10 @@ BNO_rvcStatus_t BNO_rvc::read(BNO_rvcData* bnoData) {
             packetStart = -2; // mark header found
             uint8_t sum = 0;
             for (int j = 2; j < 18; j++) {sum += raw[i + j];}
-            Serial.printf("Index %d, avail %d\r\n", raw[i + 2], avail);
+            //Serial.printf("Index %d, avail %d\r\n", raw[i + 2], avail);
             if (sum == raw[i + 18]) {
                 packetStart = i;
-                Serial.printf("BNO08x full packet found at index %d\r\n", packetStart);
+                //Serial.printf("BNO08x full packet found at index %d\r\n", packetStart);
                 break;
             }
             else

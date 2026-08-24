@@ -38,9 +38,6 @@ public:
   bool begin(Stream *theStream);
   BNO_rvcStatus_t read(BNO_rvcData *heading);
 
-  uint32_t angCounter;
-  int16_t prevYAw;
-
 private:
   Stream *serial_dev;
 };

@@ -106,12 +106,14 @@ void GGA_Handler(void) //Rec'd GGA
 /// @param bnoData
 void imuHandler(BNO_rvcData bnoData)
 {
+    static uint16_t yawCount = 0;
+    static uint16_t prevYaw = 0;
+    static int16_t yawAccum = 0;
     if (!useDual)
     {
+
         if (useBNO08xRVC)
         {
-            float angVel;
-
             // Fill rest of Panda Sentence Z - Heading
             itoa(bnoData.yawX10, imuData.heading, 10);       // 10 - as decimal, 2 as binary
 
@@ -130,36 +132,24 @@ void imuHandler(BNO_rvcData bnoData)
                 itoa(bnoData.pitchX10, imuData.roll, 10);
             }
 
-            if (rvc.angCounter < 20)
-            {
-                imuData.angVelrvc += (bnoData.yawX100 - rvc.prevYAw);
-                rvc.angCounter++;
-                rvc.prevYAw = bnoData.yawX100;
-            }
-            else
-            {
-                rvc.angCounter = 0;
-                rvc.prevYAw = imuData.angVelrvc = 0;
-            }
-            //Serial.printf(rvc.angCounter);
-            //Serial.printf(", ");
-            //Serial.printf(bnoData.angVel);
-            //Serial.printf(", ");
-            // YawRate
-            if (rvc.angCounter > 0) // jsme ve 200ms okne
-            {
-                angVel = ((float)imuData.angVelrvc) / (float)rvc.angCounter;
-                angVel *= 10.0;
-                rvc.angCounter = 0;
-                imuData.angVelrvc = (int16_t)angVel;
-            }
-            else
-            {
-                imuData.angVelrvc = 0;
-            }
+            // YawRate - vypocitej prumer z 20 vzorku, pro uhlovou rychlost - plovouci okno
+            yawAccum += (bnoData.yawX100 - prevYaw);
+            prevYaw = bnoData.yawX100;
 
-            itoa(imuData.angVelrvc, imuData.yawRate, 10);
-            imuData.angVelrvc = 0;
+            int32_t angVel;
+            if (++ yawCount < 20)
+            {
+                angVel = (yawAccum) * 10;  // average angel velocity
+                angVel /= yawCount;
+                printf("ZHandler X100:%d, angSpeed %d \r\n", bnoData.yawX100, angVel);
+            }
+            else
+            {   // new starting point
+                yawAccum = 0;
+                yawCount = 0;
+                angVel = yawAccum * 10;
+            }
+            itoa(angVel, imuData.yawRate, 10);
         }
     }
     else
