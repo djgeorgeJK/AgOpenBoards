@@ -26,6 +26,7 @@ struct IMU_Data {
     char roll[6];
     char pitch[6];
     char yawRate[6];
+    int16_t angVelrvc;         //  running total of angular velocity
 } imuData;
 
 extern EthernetUDP Eth_udpPAOGI;
@@ -129,6 +130,17 @@ void imuHandler(BNO_rvcData bnoData)
                 itoa(bnoData.pitchX10, imuData.roll, 10);
             }
 
+            if (rvc.angCounter < 20)
+            {
+                imuData.angVelrvc += (bnoData.yawX100 - rvc.prevYAw);
+                rvc.angCounter++;
+                rvc.prevYAw = bnoData.yawX100;
+            }
+            else
+            {
+                rvc.angCounter = 0;
+                rvc.prevYAw = imuData.angVelrvc = 0;
+            }
             //Serial.printf(rvc.angCounter);
             //Serial.printf(", ");
             //Serial.printf(bnoData.angVel);
@@ -136,18 +148,18 @@ void imuHandler(BNO_rvcData bnoData)
             // YawRate
             if (rvc.angCounter > 0) // jsme ve 200ms okne
             {
-                angVel = ((float)bnoData.angVel) / (float)rvc.angCounter;
+                angVel = ((float)imuData.angVelrvc) / (float)rvc.angCounter;
                 angVel *= 10.0;
                 rvc.angCounter = 0;
-                bnoData.angVel = (int16_t)angVel;
+                imuData.angVelrvc = (int16_t)angVel;
             }
             else
             {
-                bnoData.angVel = 0;
+                imuData.angVelrvc = 0;
             }
 
-            itoa(bnoData.angVel, imuData.yawRate, 10);
-            bnoData.angVel = 0;
+            itoa(imuData.angVelrvc, imuData.yawRate, 10);
+            imuData.angVelrvc = 0;
         }
     }
     else

@@ -79,18 +79,7 @@ BNO_rvcStatus_t BNO_rvc::read(BNO_rvcData* bnoData) {
     int16_t temp;
     temp = buffer[1] + (buffer[2] << 8);    //load Yaw(Z axis) - zataceni
 
-    if (angCounter < 20)
-    {
-        bnoData->yawX100 = temp; //For angular velocity calc
-        bnoData->angVel += (temp - prevYAw);
-        angCounter++;
-        prevYAw = temp;
-    }
-    else
-    {
-        angCounter = 0;
-        prevYAw = bnoData->angVel = 0;
-    }
+    bnoData->yawX100 = temp; //For angular velocity calc
 
     // load data to output structure, convert to degrees x10
     bnoData->yawX10 = (int16_t)((float)temp * DEGREE_SCALE);

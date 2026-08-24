@@ -19,8 +19,7 @@ typedef struct BNO_rvcData {
     int16_t yawX10,     ///< Yaw in Degrees x 10
         pitchX10,       ///< Pitch in Degrees x 10
         rollX10,        ///< Roll in Degrees x 10
-        yawX100,        //  yaw in original x100
-        angVel;         //  running total of angular velocity
+        yawX100;        //  yaw in original x100
 } BNO_rvcData;
 
 typedef enum {
@@ -40,10 +39,10 @@ public:
   BNO_rvcStatus_t read(BNO_rvcData *heading);
 
   uint32_t angCounter;
+  int16_t prevYAw;
 
 private:
   Stream *serial_dev;
-  int16_t prevYAw;
 };
 
 #endif
