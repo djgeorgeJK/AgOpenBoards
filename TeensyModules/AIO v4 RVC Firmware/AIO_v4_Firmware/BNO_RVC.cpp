@@ -38,9 +38,9 @@ BNO_rvcStatus_t BNO_rvc::read(BNO_rvcData* bnoData) {
         raw[i] = serial_dev->read();
     }
 
-    // Search backwards for the last valid 19-byte packet (header: 0xAA 0xAA)
+    // Search valid 19-byte packet (header: 0xAA 0xAA)
     int packetStart = -1;
-    for (int i = lastIndex + 19 - 1; i >= 0; i--) {
+    for (int i = 0; i < lastIndex + 19; i++) {
         if (raw[i] == 0xAA && raw[i + 1] == 0xAA) {
             // Verify checksum: sum of bytes [2..17] == byte [18]
             packetStart = -2; // mark header found
