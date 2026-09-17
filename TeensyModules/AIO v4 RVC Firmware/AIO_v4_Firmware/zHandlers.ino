@@ -76,6 +76,7 @@ void GGA_Handler(void) //Rec'd GGA
     }
 
     blink = !blink;
+    // tady se trigroval vycteni imu handleru
 
     if (useDual)
     {
@@ -102,20 +103,24 @@ void GGA_Handler(void) //Rec'd GGA
     GGAReadyTime = 0;   //Used for GGA timeout (LED's ETC)
 }
 
+
+#define IMU_DATA_BUFFER_SIZE        20
+int16_t imuDataBuffer[IMU_DATA_BUFFER_SIZE];
+uint8_t imuDataBufferIndex = 0;
 /// @brief  This function process tractor`s angles to strings
 /// @param bnoData
 void imuHandler(BNO_rvcData bnoData)
 {
-    static uint16_t yawCount = 0;
+    //static uint16_t yawCount = 0;
     static uint16_t prevYaw = 0;
-    static int16_t yawAccum = 0;
+    //static int16_t yawAccum = 0;
     if (!useDual)
     {
 
         if (useBNO08xRVC)
         {
             // Fill rest of Panda Sentence Z - Heading
-            itoa(bnoData.yawX10, imuData.heading, 10);       // 10 - as decimal, 2 as binary
+            itoa(bnoData.yawX10, imuData.heading, 10);       // 10 - as decimal number
 
             if (steerConfig.IsUseY_Axis)
             {
@@ -132,24 +137,37 @@ void imuHandler(BNO_rvcData bnoData)
                 itoa(bnoData.pitchX10, imuData.roll, 10);
             }
 
-            // YawRate - vypocitej prumer z 20 vzorku, pro uhlovou rychlost - plovouci okno
-            yawAccum += (bnoData.yawX100 - prevYaw);
-            prevYaw = bnoData.yawX100;
-
-            int32_t angVel;
-            if (++ yawCount < 20)
+            /* Yaw rate over flying window of 20 samples, for angular velocity
+             * Samples are each 10ms of 0.01°. Per 1 sec is 100 samples. Kdyz udelam tedy jen prumer rozdilu 100 vzorku mam
+             * vlastne uhlovou rychlost za sekundu*/
+            imuDataBuffer[imuDataBufferIndex] = bnoData.yawX100 - prevYaw;
+            imuDataBufferIndex = (imuDataBufferIndex + 1) % IMU_DATA_BUFFER_SIZE;
+            uint32_t temp = 0;
+            // calculate avg
+            for (int i = 0; i < IMU_DATA_BUFFER_SIZE; i++)
             {
-                angVel = (yawAccum) * 10;  // average angel velocity
-                angVel /= yawCount;
-                printf("ZHandler X100:%d, angSpeed %d \r\n", bnoData.yawX100, angVel);
+                temp += imuDataBuffer[i];
             }
-            else
-            {   // new starting point
-                yawAccum = 0;
-                yawCount = 0;
-                angVel = yawAccum * 10;
-            }
-            itoa(angVel, imuData.yawRate, 10);
+            temp *= 10; // convert to 0.1 degrees per second
+            int32_t angVel = temp / IMU_DATA_BUFFER_SIZE;
+
+            // YawRate - vypocitej prumer z 20 vzorku, pro uhlovou rychlost - plovouci okno
+            //yawAccum += (bnoData.yawX100 - prevYaw);
+            prevYaw = bnoData.yawX100;
+            // int32_t angVel;
+            // if (++ yawCount < 20)
+            // {
+            //     angVel = (yawAccum) * 10;  // average angel velocity
+            //     angVel /= yawCount;
+            // }
+            // else
+            // {   // new starting point
+            //     yawAccum = 0;
+            //     yawCount = 0;
+            //     angVel = yawAccum * 10;
+            // }
+            Serial.printf("ZHandler X100:%d, angSpeed %d \r\n", bnoData.yawX100, angVel);
+            itoa(angVel, imuData.yawRate, 10);  // 10 - as decimal number
         }
     }
     else

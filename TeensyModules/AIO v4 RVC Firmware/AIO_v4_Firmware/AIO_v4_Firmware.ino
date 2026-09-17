@@ -362,7 +362,7 @@ void TaskScheduler(void)
                 useBNO08xRVC = true;
                 RvcFaultyCounter = 0;
                 //Serial.printf("BNO08x X:%d, Y:%d, Z:%d\r\n", bnoData.pitchX10, bnoData.rollX10, bnoData.yawX10);
-                imuHandler(bnoData); // Get IMU data ready
+                imuHandler(bnoData); // Process BNO data ready
             }
 
             BnoData = bnoData;  // temporialy used for dual heading and roll data
